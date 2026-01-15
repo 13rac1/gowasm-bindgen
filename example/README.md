@@ -16,10 +16,21 @@ This example demonstrates how to use `go-wasm-ts-gen` to generate TypeScript dec
 make all
 
 # This runs:
-# 1. setup     - Copies wasm_exec.js from Go installation
-# 2. build     - Compiles Go to WASM (example.wasm)
+# 1. setup     - Copies wasm_exec.js from TinyGo installation
+# 2. build     - Compiles Go to WASM with TinyGo (example.wasm)
 # 3. generate  - Runs go-wasm-ts-gen to create types.d.ts
 # 4. verify    - Runs Deno tests to validate types
+```
+
+### Using Standard Go (Alternative)
+
+Standard Go also works but produces a much larger binary (~2.4MB vs ~620KB with TinyGo):
+
+```bash
+make setup-go   # Copy wasm_exec.js from Go installation
+make build-go   # Build with standard Go
+make generate
+make verify
 ```
 
 ## Generated Output
@@ -99,6 +110,7 @@ make serve
 
 ## Requirements
 
-- Go 1.21+
+- [TinyGo](https://tinygo.org/getting-started/install/) (recommended for small WASM binaries)
+- Go 1.21+ (alternative, produces larger binaries)
 - Deno (for type verification)
 - Python 3 (for `make serve`)

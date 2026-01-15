@@ -3,13 +3,20 @@
 # Build WASM, generate types, and verify
 all: setup build generate verify
 
-# Copy wasm_exec.js from Go installation
+# Copy wasm_exec.js from TinyGo installation
 setup:
-	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" .
+	cp "$$(tinygo env TINYGOROOT)/targets/wasm_exec.js" .
 
-# Build the WASM binary
+# Build the WASM binary with TinyGo (~620KB vs ~2.4MB with standard Go)
 build:
+	tinygo build -o example.wasm -target wasm ./wasm/
+
+# Alternative: Build with standard Go (produces ~2.4MB binary)
+build-go:
 	GOOS=js GOARCH=wasm go build -o example.wasm ./wasm/
+
+setup-go:
+	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" .
 
 # Generate TypeScript declarations using go-wasm-ts-gen
 generate:
