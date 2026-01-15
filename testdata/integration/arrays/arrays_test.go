@@ -43,8 +43,10 @@ func TestArrays(t *testing.T) {
 				js.ValueOf(tt.numbers),
 			})
 
-			if result == nil {
-				t.Error("expected non-nil result")
+			jsResult := result.(js.Value)
+			got := jsResult.String()
+			if got != "processed" {
+				t.Errorf("expected 'processed', got %s", got)
 			}
 		})
 	}

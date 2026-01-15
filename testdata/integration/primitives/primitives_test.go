@@ -39,9 +39,12 @@ func TestPrimitives(t *testing.T) {
 				js.ValueOf(tt.flag),
 			})
 
-			if result == nil {
-				t.Error("expected non-nil result")
+			// Type assertion pattern for return type inference
+			jsResult := result.(js.Value)
+			if jsResult.IsNull() {
+				return
 			}
+			_ = jsResult.String()
 		})
 	}
 }

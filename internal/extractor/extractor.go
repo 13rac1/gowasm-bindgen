@@ -1,6 +1,7 @@
 package extractor
 
 import (
+	"fmt"
 	"go/ast"
 	"go/token"
 	"strings"
@@ -34,12 +35,14 @@ func extractSignature(call parser.WASMCall, fn *ast.FuncDecl, fset *token.FileSe
 	doc := extractDocComment(fn)
 
 	return FunctionSignature{
-		Name:     call.FuncName,
-		Params:   params,
-		Returns:  returns,
-		Examples: examples,
-		Doc:      doc,
-		TestFunc: call.TestFunc,
+		Name:       call.FuncName,
+		Params:     params,
+		Returns:    returns,
+		Examples:   examples,
+		Doc:        doc,
+		TestFunc:   call.TestFunc,
+		SourceFile: call.SourceFile,
+		Line:       call.Line,
 	}
 }
 
@@ -175,7 +178,7 @@ func findStructField(structType *ast.StructType, name string) *ast.Field {
 
 // generateArgName generates argN parameter names
 func generateArgName(index int) string {
-	return "arg" + string(rune('0'+index))
+	return fmt.Sprintf("arg%d", index)
 }
 
 // extractDocComment extracts the doc comment from a function declaration

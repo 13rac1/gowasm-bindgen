@@ -2,12 +2,14 @@ package extractor
 
 // FunctionSignature represents a fully extracted WASM function signature
 type FunctionSignature struct {
-	Name     string      // Function name
-	Params   []Parameter // Parameters with names and types
-	Returns  ReturnType  // Return type info
-	Examples []Example   // From test cases
-	Doc      string      // Doc comment from test function
-	TestFunc string      // Source test function name
+	Name       string      // Function name
+	Params     []Parameter // Parameters with names and types
+	Returns    ReturnType  // Return type info
+	Examples   []Example   // From test cases
+	Doc        string      // Doc comment from test function
+	TestFunc   string      // Source test function name
+	SourceFile string      // Source file path
+	Line       int         // Line number
 }
 
 // Parameter represents a function parameter

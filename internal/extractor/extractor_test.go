@@ -354,3 +354,59 @@ func TestExtractExamples(t *testing.T) {
 		}
 	}
 }
+
+func TestGenerateArgName(t *testing.T) {
+	tests := []struct {
+		index int
+		want  string
+	}{
+		{0, "arg0"},
+		{1, "arg1"},
+		{9, "arg9"},
+		{10, "arg10"},
+		{11, "arg11"},
+		{99, "arg99"},
+		{100, "arg100"},
+	}
+
+	for _, tt := range tests {
+		got := generateArgName(tt.index)
+		if got != tt.want {
+			t.Errorf("generateArgName(%d) = %q, want %q", tt.index, got, tt.want)
+		}
+	}
+}
+
+func TestExtractParameters_ManyParams(t *testing.T) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, "../../testdata/errors/many_params/many_params_test.go", nil, parser.ParseComments)
+	if err != nil {
+		t.Fatalf("failed to parse file: %v", err)
+	}
+
+	testFuncs := goparser.FindTestFunctions([]*ast.File{file})
+	if len(testFuncs) == 0 {
+		t.Fatal("no test functions found")
+	}
+
+	fn := testFuncs[0]
+	calls := goparser.FindWASMCalls(fn, fset)
+	if len(calls) == 0 {
+		t.Fatal("no WASM calls found")
+	}
+
+	params := ExtractParameters(calls[0], fn)
+
+	// Should have 15 fallback params (arg0 through arg14)
+	if len(params) != 15 {
+		t.Fatalf("got %d params, want 15", len(params))
+	}
+
+	// Verify param names are correct, especially for index >= 10
+	for i, p := range params {
+		want := generateArgName(i)
+		if p.Name != want {
+			t.Errorf("param[%d].Name = %q, want %q", i, p.Name, want)
+		}
+	}
+}

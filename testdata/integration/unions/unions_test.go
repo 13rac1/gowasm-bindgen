@@ -20,16 +20,30 @@ func validate(this js.Value, args []js.Value) interface{} {
 
 // TestUnionReturn tests extraction of union return type
 func TestUnionReturn(t *testing.T) {
-	result := validate(js.Null(), []js.Value{js.ValueOf("valid-data")})
-	jsResult := result.(js.Value)
+	tests := []struct {
+		name  string
+		input string
+	}{
+		{name: "valid input", input: "valid-data"},
+		{name: "invalid input", input: "invalid"},
+	}
 
-	if !jsResult.Get("error").IsUndefined() {
-		errMsg := jsResult.Get("error").String()
-		t.Errorf("unexpected error: %s", errMsg)
-	} else {
-		success := jsResult.Get("success").Bool()
-		if !success {
-			t.Error("expected success to be true")
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := validate(js.Null(), []js.Value{js.ValueOf(tt.input)})
+			jsResult := result.(js.Value)
+
+			if !jsResult.Get("error").IsUndefined() {
+				errMsg := jsResult.Get("error").String()
+				if tt.input != "invalid" {
+					t.Errorf("unexpected error: %s", errMsg)
+				}
+			} else {
+				success := jsResult.Get("success").Bool()
+				if !success {
+					t.Error("expected success to be true")
+				}
+			}
+		})
 	}
 }

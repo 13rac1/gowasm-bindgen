@@ -9,6 +9,7 @@ import (
 	"github.com/13rac1/go-wasm-ts-gen/internal/extractor"
 	"github.com/13rac1/go-wasm-ts-gen/internal/generator"
 	"github.com/13rac1/go-wasm-ts-gen/internal/parser"
+	"github.com/13rac1/go-wasm-ts-gen/internal/validator"
 )
 
 func main() {
@@ -27,12 +28,14 @@ func run() error {
 	flag.StringVar(&output, "output", "", "output .d.ts file path")
 	flag.Parse()
 
-	// Validate
+	// Validate flags
 	if len(tests) == 0 {
-		return fmt.Errorf("--tests is required")
+		return fmt.Errorf("--tests is required\n\n" +
+			"Usage: go-wasm-ts-gen --tests 'path/*_test.go' --output types.d.ts")
 	}
 	if output == "" {
-		return fmt.Errorf("--output is required")
+		return fmt.Errorf("--output is required\n\n" +
+			"Usage: go-wasm-ts-gen --tests 'path/*_test.go' --output types.d.ts")
 	}
 
 	// Parse test files
@@ -48,7 +51,18 @@ func run() error {
 	}
 
 	if len(sigs) == 0 {
-		return fmt.Errorf("no WASM function signatures found in test files")
+		return fmt.Errorf("no WASM function signatures found\n\n" +
+			"Expected pattern:\n" +
+			"  result := funcName(js.Null(), []js.Value{js.ValueOf(arg), ...})\n\n" +
+			"Checklist:\n" +
+			"  - Test functions start with 'Test'\n" +
+			"  - First argument is js.Null()\n" +
+			"  - Second argument is []js.Value{...} literal")
+	}
+
+	// Validate signatures (always runs, fails on issues)
+	if err := validator.Validate(sigs); err != nil {
+		return err
 	}
 
 	// Generate TypeScript
