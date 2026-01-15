@@ -1,4 +1,7 @@
-.PHONY: build test lint format check clean test-e2e
+.PHONY: all build test lint format check clean test-e2e
+
+# Default target: check code quality and build
+all: check build
 
 # Build the CLI binary
 build:
@@ -19,9 +22,10 @@ format:
 # Run format, lint, and test
 check: format lint test
 
-# Remove build artifacts
+# Remove build artifacts and generated test files
 clean:
 	rm -rf bin/
+	rm -f testdata/e2e/test.wasm testdata/e2e/test.d.ts testdata/e2e/wasm_exec.js
 	go clean -cache -testcache
 
 # End-to-end test: build WASM, generate .d.ts, run Deno tests
