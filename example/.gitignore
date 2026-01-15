@@ -1,0 +1,4 @@
+# Generated files
+example.wasm
+types.d.ts
+wasm_exec.js
