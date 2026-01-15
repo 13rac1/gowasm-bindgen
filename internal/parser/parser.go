@@ -126,8 +126,10 @@ func matchWASMCallPattern(call *ast.CallExpr, fset *token.FileSet) *WASMCall {
 	}
 
 	// Second argument should be []js.Value{...}
+	// An empty slice []js.Value{} is valid (zero arguments)
 	args := extractJsValueSlice(call.Args[1], fset)
 	if args == nil {
+		// nil means parse failure, not empty arguments
 		return nil
 	}
 
@@ -169,8 +171,12 @@ func extractJsValueSlice(expr ast.Expr, fset *token.FileSet) []Argument {
 		return nil
 	}
 
-	var args []Argument
+	// Return empty slice for []js.Value{} with no arguments
+	if len(comp.Elts) == 0 {
+		return []Argument{}
+	}
 
+	var args []Argument
 	for _, elt := range comp.Elts {
 		arg := extractArgument(elt, fset)
 		args = append(args, arg)
