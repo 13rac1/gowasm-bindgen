@@ -1,4 +1,4 @@
-.PHONY: all build generate verify serve clean setup
+.PHONY: all build generate verify serve clean setup format lint check
 
 # Build WASM, generate types, and verify
 all: setup build generate verify
@@ -46,6 +46,17 @@ serve: all
 	@echo "Starting server at http://localhost:8080"
 	@echo "Open http://localhost:8080/web/ in your browser"
 	python3 -m http.server 8080
+
+# Format code
+format:
+	gofmt -w .
+
+# Lint code (requires WASM build tags for syscall/js)
+lint:
+	GOOS=js GOARCH=wasm golangci-lint run ./...
+
+# Run format and lint
+check: format lint
 
 # Clean generated files
 clean:

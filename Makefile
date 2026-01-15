@@ -11,9 +11,10 @@ build:
 test:
 	go test -v ./...
 
-# Run golangci-lint
+# Run golangci-lint (excludes example which needs WASM build tags)
 lint:
-	golangci-lint run
+	golangci-lint run ./cmd/... ./internal/...
+	GOOS=js GOARCH=wasm golangci-lint run ./example/...
 
 # Format code with gofmt
 format:
