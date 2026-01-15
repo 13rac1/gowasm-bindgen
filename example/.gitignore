@@ -2,3 +2,4 @@
 example.wasm
 types.d.ts
 wasm_exec.js
+web/app.js

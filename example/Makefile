@@ -1,7 +1,7 @@
-.PHONY: all build generate verify serve clean setup format lint check
+.PHONY: all build generate verify serve clean setup format lint check web
 
 # Build WASM, generate types, and verify
-all: setup build generate verify
+all: setup build generate verify web
 
 # Copy wasm_exec.js from TinyGo installation
 setup:
@@ -40,6 +40,10 @@ generate:
 # Verify generated types work with Deno
 verify:
 	deno test --allow-read verify_test.ts
+
+# Compile TypeScript web demo (uses generated types.d.ts)
+web: generate
+	deno run -A npm:esbuild web/app.ts --bundle --outfile=web/app.js
 
 # Start a local web server to test the demo
 serve: all
