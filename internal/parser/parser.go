@@ -266,6 +266,12 @@ func formatExprFallback(expr ast.Expr) string {
 		return e.Value
 	case *ast.Ident:
 		return e.Name
+	case *ast.SelectorExpr:
+		// Handle tt.field pattern
+		if x, ok := e.X.(*ast.Ident); ok {
+			return x.Name + "." + e.Sel.Name
+		}
+		return "..."
 	case *ast.CompositeLit:
 		return "{...}" // Simplified
 	default:
