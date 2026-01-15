@@ -1,4 +1,4 @@
-.PHONY: build test lint format check clean
+.PHONY: build test lint format check clean test-e2e
 
 # Build the CLI binary
 build:
@@ -23,3 +23,14 @@ check: format lint test
 clean:
 	rm -rf bin/
 	go clean -cache -testcache
+
+# End-to-end test: build WASM, generate .d.ts, run Deno tests
+test-e2e: build
+	# Copy wasm_exec.js from Go installation
+	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" testdata/e2e/
+	# Build WASM binary
+	GOOS=js GOARCH=wasm go build -o testdata/e2e/test.wasm ./testdata/e2e/wasm/
+	# Generate TypeScript declarations
+	./bin/go-wasm-ts-gen --tests "testdata/e2e/wasm/*_test.go" --output testdata/e2e/test.d.ts
+	# Run Deno tests
+	deno test --allow-read testdata/e2e/verify_test.ts
