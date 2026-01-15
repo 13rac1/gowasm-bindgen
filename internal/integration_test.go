@@ -20,7 +20,7 @@ func TestFullPipeline_Primitives(t *testing.T) {
 	}
 
 	// Extract
-	sigs, err := extractor.ExtractSignatures(files, fset)
+	sigs, _, err := extractor.ExtractSignatures(files, fset)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
@@ -60,7 +60,7 @@ func TestFullPipeline_Arrays(t *testing.T) {
 	}
 
 	// Extract
-	sigs, err := extractor.ExtractSignatures(files, fset)
+	sigs, _, err := extractor.ExtractSignatures(files, fset)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
@@ -96,7 +96,7 @@ func TestFullPipeline_Objects(t *testing.T) {
 	}
 
 	// Extract
-	sigs, err := extractor.ExtractSignatures(files, fset)
+	sigs, _, err := extractor.ExtractSignatures(files, fset)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
@@ -137,7 +137,7 @@ func TestFullPipeline_Unions(t *testing.T) {
 	}
 
 	// Extract
-	sigs, err := extractor.ExtractSignatures(files, fset)
+	sigs, _, err := extractor.ExtractSignatures(files, fset)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
@@ -179,7 +179,7 @@ func TestFullPipeline_Multiple(t *testing.T) {
 	}
 
 	// Extract
-	sigs, err := extractor.ExtractSignatures(files, fset)
+	sigs, _, err := extractor.ExtractSignatures(files, fset)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}
@@ -240,7 +240,7 @@ func TestFullPipeline_AllIntegration(t *testing.T) {
 	}
 
 	// Extract
-	sigs, err := extractor.ExtractSignatures(files, fset)
+	sigs, _, err := extractor.ExtractSignatures(files, fset)
 	if err != nil {
 		t.Fatalf("extract: %v", err)
 	}

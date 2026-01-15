@@ -60,82 +60,171 @@ func FindTestFunctions(files []*ast.File) []*ast.FuncDecl {
 
 // FindWASMCalls finds WASM function calls in a test function body
 // Pattern: funcName(js.Null(), []js.Value{...})
-func FindWASMCalls(fn *ast.FuncDecl, fset *token.FileSet) []WASMCall {
+// Returns both matched calls and rejected calls (intended WASM calls that didn't match)
+func FindWASMCalls(fn *ast.FuncDecl, fset *token.FileSet) ([]WASMCall, []RejectedCall) {
 	var calls []WASMCall
+	var rejections []RejectedCall
 
 	ast.Inspect(fn.Body, func(n ast.Node) bool {
-		// Look for assignment statements
-		assign, ok := n.(*ast.AssignStmt)
-		if !ok {
-			return true
-		}
-
-		// Check if RHS is a function call
-		if len(assign.Rhs) != 1 {
-			return true
-		}
-
-		call, ok := assign.Rhs[0].(*ast.CallExpr)
-		if !ok {
-			return true
-		}
-
-		// Extract result variable name
-		resultVar := ""
-		if len(assign.Lhs) == 1 {
-			if ident, ok := assign.Lhs[0].(*ast.Ident); ok {
-				resultVar = ident.Name
+		switch stmt := n.(type) {
+		case *ast.AssignStmt:
+			// Check if RHS is a function call
+			if len(stmt.Rhs) != 1 {
+				return true
 			}
+
+			call, ok := stmt.Rhs[0].(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+
+			// Extract result variable name
+			resultVar := ""
+			if len(stmt.Lhs) == 1 {
+				if ident, ok := stmt.Lhs[0].(*ast.Ident); ok {
+					resultVar = ident.Name
+				}
+			}
+
+			// Try to match the WASM call pattern
+			wasmCall, rejection := matchWASMCallPattern(call, fset)
+			if rejection != nil {
+				rejection.TestFunc = fn.Name.Name
+				rejection.SourceFile = fset.Position(fn.Pos()).Filename
+				rejection.Line = fset.Position(call.Pos()).Line
+				rejections = append(rejections, *rejection)
+				return true
+			}
+
+			if wasmCall == nil {
+				return true
+			}
+
+			wasmCall.ResultVar = resultVar
+			wasmCall.TestFunc = fn.Name.Name
+			wasmCall.SourceFile = fset.Position(fn.Pos()).Filename
+			wasmCall.Line = fset.Position(call.Pos()).Line
+
+			calls = append(calls, *wasmCall)
+
+		case *ast.ExprStmt:
+			// Check for unassigned WASM-like calls
+			call, ok := stmt.X.(*ast.CallExpr)
+			if !ok {
+				return true
+			}
+
+			// Check if this looks like a WASM call (has js.Null() or []js.Value{})
+			if !hasJsNullArg(call) && !hasJsValueSliceArg(call) {
+				return true
+			}
+
+			// This is a WASM-like call without assignment - reject it
+			funcName := getFuncName(call)
+			rejections = append(rejections, RejectedCall{
+				FuncName:   funcName,
+				TestFunc:   fn.Name.Name,
+				SourceFile: fset.Position(fn.Pos()).Filename,
+				Line:       fset.Position(call.Pos()).Line,
+				Reason:     "call is not assigned to a variable",
+			})
 		}
 
-		// Try to match the WASM call pattern
-		wasmCall := matchWASMCallPattern(call, fset)
-		if wasmCall == nil {
-			return true
-		}
-
-		wasmCall.ResultVar = resultVar
-		wasmCall.TestFunc = fn.Name.Name
-		wasmCall.SourceFile = fset.Position(fn.Pos()).Filename
-		wasmCall.Line = fset.Position(call.Pos()).Line
-
-		calls = append(calls, *wasmCall)
 		return true
 	})
 
-	return calls
+	return calls, rejections
 }
 
 // matchWASMCallPattern checks if a call expression matches the WASM pattern:
 // funcName(js.Null(), []js.Value{...})
-func matchWASMCallPattern(call *ast.CallExpr, fset *token.FileSet) *WASMCall {
+// Returns (WASMCall, nil) on match, (nil, RejectedCall) if intended WASM but malformed, (nil, nil) if not WASM-related
+func matchWASMCallPattern(call *ast.CallExpr, fset *token.FileSet) (*WASMCall, *RejectedCall) {
+	// Check if this looks like an intended WASM call (has js.Null() or []js.Value{} anywhere)
+	hasJsNull := hasJsNullArg(call)
+	hasJsValueSlice := hasJsValueSliceArg(call)
+
+	if !hasJsNull && !hasJsValueSlice {
+		// Not WASM-related at all, skip silently
+		return nil, nil
+	}
+
+	// Get function name for error messages
+	funcName := getFuncName(call)
+
 	// Must be a simple function call (identifier)
-	funcIdent, ok := call.Fun.(*ast.Ident)
+	_, ok := call.Fun.(*ast.Ident)
 	if !ok {
-		return nil
+		return nil, &RejectedCall{
+			FuncName: funcName,
+			Reason:   "function is method/selector, expected simple function name",
+		}
 	}
 
 	// Must have exactly 2 arguments
 	if len(call.Args) != 2 {
-		return nil
+		return nil, &RejectedCall{
+			FuncName: funcName,
+			Reason:   fmt.Sprintf("function has %d arguments, expected exactly 2", len(call.Args)),
+		}
 	}
 
 	// First argument should be js.Null()
 	if !isJsNullCall(call.Args[0]) {
-		return nil
+		return nil, &RejectedCall{
+			FuncName: funcName,
+			Reason:   "first argument is not js.Null()",
+		}
 	}
 
 	// Second argument should be []js.Value{...}
-	// An empty slice []js.Value{} is valid (zero arguments)
 	args := extractJsValueSlice(call.Args[1], fset)
 	if args == nil {
-		// nil means parse failure, not empty arguments
-		return nil
+		return nil, &RejectedCall{
+			FuncName: funcName,
+			Reason:   "second argument is not []js.Value{...}",
+		}
 	}
 
 	return &WASMCall{
-		FuncName: funcIdent.Name,
+		FuncName: funcName,
 		Args:     args,
+	}, nil
+}
+
+// hasJsNullArg checks if any argument is js.Null()
+func hasJsNullArg(call *ast.CallExpr) bool {
+	for _, arg := range call.Args {
+		if isJsNullCall(arg) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasJsValueSliceArg checks if any argument is []js.Value{...}
+func hasJsValueSliceArg(call *ast.CallExpr) bool {
+	for _, arg := range call.Args {
+		comp, ok := arg.(*ast.CompositeLit)
+		if !ok {
+			continue
+		}
+		if isJsValueSliceType(comp.Type) {
+			return true
+		}
+	}
+	return false
+}
+
+// getFuncName extracts the function name from a call expression
+func getFuncName(call *ast.CallExpr) string {
+	switch fn := call.Fun.(type) {
+	case *ast.Ident:
+		return fn.Name
+	case *ast.SelectorExpr:
+		return fn.Sel.Name
+	default:
+		return "<unknown>"
 	}
 }
 

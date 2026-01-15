@@ -43,37 +43,9 @@ func validateSignature(sig extractor.FunctionSignature) []error {
 	// Check for "any" return type (type inference failed)
 	if sig.Returns.Type == "any" {
 		errs = append(errs, fmt.Errorf("%s:%d: return type inferred as 'any' for %s\n"+
-			"  add result.Get(\"field\").String() or result.Bool() calls to infer type",
-			sig.SourceFile, sig.Line, sig.Name))
-	}
-
-	// Check for fallback parameter names (no table struct found)
-	if hasFallbackParams(sig.Params) {
-		errs = append(errs, fmt.Errorf("%s:%d: using fallback param names (arg0, arg1, ...) for %s\n"+
-			"  use table-driven tests with 'tests := []struct{...}' for named parameters",
+			"  hint: add result.Get(\"field\").String() or result.Bool() calls to infer type",
 			sig.SourceFile, sig.Line, sig.Name))
 	}
 
 	return errs
-}
-
-// hasFallbackParams checks if any parameter uses the argN fallback naming
-func hasFallbackParams(params []extractor.Parameter) bool {
-	for _, p := range params {
-		if strings.HasPrefix(p.Name, "arg") && len(p.Name) > 3 {
-			// Check if rest is a number (arg0, arg1, arg10, etc.)
-			rest := p.Name[3:]
-			isNumber := true
-			for _, c := range rest {
-				if c < '0' || c > '9' {
-					isNumber = false
-					break
-				}
-			}
-			if isNumber {
-				return true
-			}
-		}
-	}
-	return false
 }

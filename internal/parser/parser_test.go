@@ -4,6 +4,7 @@ import (
 	"go/ast"
 	"go/parser"
 	"go/token"
+	"strings"
 	"testing"
 )
 
@@ -134,7 +135,11 @@ func TestWASMCall(t *testing.T) {
 		t.Fatalf("expected 1 test function, got %d", len(testFuncs))
 	}
 
-	calls := FindWASMCalls(testFuncs[0], fset)
+	calls, rejections := FindWASMCalls(testFuncs[0], fset)
+
+	if len(rejections) > 0 {
+		t.Fatalf("FindWASMCalls() had %d rejections: %v", len(rejections), rejections)
+	}
 
 	if len(calls) != 1 {
 		t.Fatalf("FindWASMCalls() found %d calls, want 1", len(calls))
@@ -197,7 +202,11 @@ func TestMultipleCalls(t *testing.T) {
 		t.Fatalf("expected 1 test function, got %d", len(testFuncs))
 	}
 
-	calls := FindWASMCalls(testFuncs[0], fset)
+	calls, rejections := FindWASMCalls(testFuncs[0], fset)
+
+	if len(rejections) > 0 {
+		t.Fatalf("FindWASMCalls() had %d rejections: %v", len(rejections), rejections)
+	}
 
 	if len(calls) != 2 {
 		t.Fatalf("FindWASMCalls() found %d calls, want 2", len(calls))
@@ -394,6 +403,57 @@ func TestInferTypeFromLiteral(t *testing.T) {
 	}
 }
 
+func TestFindWASMCalls_Rejections(t *testing.T) {
+	tests := []struct {
+		name       string
+		pattern    string
+		wantReason string
+	}{
+		{"wrong_arg_count", "../../testdata/errors/wrong_arg_count/*_test.go", "expected exactly 2"},
+		{"wrong_first_arg", "../../testdata/errors/wrong_first_arg/*_test.go", "not js.Null()"},
+		{"wrong_second_arg", "../../testdata/errors/wrong_second_arg/*_test.go", "not []js.Value"},
+		{"selector_func", "../../testdata/errors/selector_func/*_test.go", "method/selector"},
+		{"no_assignment", "../../testdata/errors/no_assignment/*_test.go", "not assigned"},
+		{"wrong_slice_type", "../../testdata/errors/wrong_slice_type/*_test.go", "not []js.Value"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			files, fset, err := ParseTestFiles([]string{tt.pattern})
+			if err != nil {
+				t.Fatalf("failed to parse test files: %v", err)
+			}
+
+			testFuncs := FindTestFunctions(files)
+			if len(testFuncs) == 0 {
+				t.Fatal("no test functions found")
+			}
+
+			var allRejections []RejectedCall
+			for _, fn := range testFuncs {
+				_, rejections := FindWASMCalls(fn, fset)
+				allRejections = append(allRejections, rejections...)
+			}
+
+			if len(allRejections) == 0 {
+				t.Error("expected rejection, got none")
+				return
+			}
+
+			found := false
+			for _, r := range allRejections {
+				if strings.Contains(r.Reason, tt.wantReason) {
+					found = true
+					break
+				}
+			}
+			if !found {
+				t.Errorf("expected reason containing %q, got %v", tt.wantReason, allRejections)
+			}
+		})
+	}
+}
+
 func TestFindWASMCallsNoMatches(t *testing.T) {
 	src := `
 package test
@@ -418,9 +478,13 @@ func TestNormal(t *testing.T) {
 		t.Fatalf("expected 1 test function, got %d", len(testFuncs))
 	}
 
-	calls := FindWASMCalls(testFuncs[0], fset)
+	calls, rejections := FindWASMCalls(testFuncs[0], fset)
 
 	if len(calls) != 0 {
 		t.Errorf("FindWASMCalls() found %d calls, want 0", len(calls))
+	}
+
+	if len(rejections) != 0 {
+		t.Errorf("FindWASMCalls() had %d rejections, want 0", len(rejections))
 	}
 }

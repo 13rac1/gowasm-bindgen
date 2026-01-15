@@ -15,3 +15,12 @@ type Argument struct {
 	Expression string // The expression passed to js.ValueOf()
 	GoType     string // Resolved Go type (string, int, []string, etc.)
 }
+
+// RejectedCall represents a call that looked like a WASM call but didn't match the pattern
+type RejectedCall struct {
+	FuncName   string // Function name if identifiable
+	TestFunc   string // Parent test function name
+	SourceFile string // Source file path
+	Line       int    // Line number of the call
+	Reason     string // Why pattern didn't match
+}

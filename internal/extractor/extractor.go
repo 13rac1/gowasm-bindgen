@@ -10,13 +10,16 @@ import (
 )
 
 // ExtractSignatures extracts function signatures from parsed test files
-func ExtractSignatures(files []*ast.File, fset *token.FileSet) ([]FunctionSignature, error) {
+// Returns signatures and any rejected calls (malformed WASM patterns)
+func ExtractSignatures(files []*ast.File, fset *token.FileSet) ([]FunctionSignature, []parser.RejectedCall, error) {
 	testFuncs := parser.FindTestFunctions(files)
 
 	var signatures []FunctionSignature
+	var allRejections []parser.RejectedCall
 
 	for _, fn := range testFuncs {
-		calls := parser.FindWASMCalls(fn, fset)
+		calls, rejections := parser.FindWASMCalls(fn, fset)
+		allRejections = append(allRejections, rejections...)
 
 		for _, call := range calls {
 			sig := extractSignature(call, fn, fset)
@@ -24,7 +27,7 @@ func ExtractSignatures(files []*ast.File, fset *token.FileSet) ([]FunctionSignat
 		}
 	}
 
-	return signatures, nil
+	return signatures, allRejections, nil
 }
 
 // extractSignature extracts a complete function signature from a WASM call
@@ -60,13 +63,13 @@ func ExtractParameters(call parser.WASMCall, fn *ast.FuncDecl) []Parameter {
 func extractParametersFromTable(call parser.WASMCall, tableStruct *ast.StructType) []Parameter {
 	var params []Parameter
 
-	for _, arg := range call.Args {
+	for i, arg := range call.Args {
 		// Extract field name from tt.fieldName pattern
 		fieldName := extractTableFieldName(arg.Expression)
 		if fieldName == "" {
-			// Fallback: use arg type directly
+			// Try to infer from variable name, fallback to argN
 			params = append(params, Parameter{
-				Name: generateArgName(len(params)),
+				Name: inferParamName(arg.Expression, i),
 				Type: arg.GoType,
 			})
 			continue
@@ -94,16 +97,41 @@ func extractParametersFromTable(call parser.WASMCall, tableStruct *ast.StructTyp
 	return params
 }
 
-// extractParametersFallback generates arg0, arg1, etc. when no table struct found
+// extractParametersFallback infers param names from expressions or generates arg0, arg1, etc.
 func extractParametersFallback(call parser.WASMCall) []Parameter {
 	params := make([]Parameter, len(call.Args))
 	for i, arg := range call.Args {
 		params[i] = Parameter{
-			Name: generateArgName(i),
+			Name: inferParamName(arg.Expression, i),
 			Type: arg.GoType,
 		}
 	}
 	return params
+}
+
+// inferParamName extracts name from expression or falls back to argN
+func inferParamName(expr string, index int) string {
+	// If expression is a simple identifier (not tt.field, not literal)
+	// use it as the param name
+	if isSimpleIdentifier(expr) {
+		return expr
+	}
+	return generateArgName(index)
+}
+
+// isSimpleIdentifier checks if a string is a simple variable name
+func isSimpleIdentifier(s string) bool {
+	if s == "" || strings.Contains(s, ".") {
+		return false
+	}
+	// Check first char is letter/underscore, not digit or quote
+	if len(s) > 0 {
+		c := rune(s[0])
+		if c == '"' || c == '\'' || c == '{' || (c >= '0' && c <= '9') {
+			return false
+		}
+	}
+	return true
 }
 
 // FindTableStruct finds the table-driven test struct in a function

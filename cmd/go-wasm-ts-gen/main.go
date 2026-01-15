@@ -39,16 +39,40 @@ func run() error {
 	}
 
 	// Parse test files
+	fmt.Println("Parsing test files...")
 	files, fset, err := parser.ParseTestFiles(tests)
 	if err != nil {
 		return fmt.Errorf("parsing test files: %w", err)
 	}
 
 	// Extract signatures
-	sigs, err := extractor.ExtractSignatures(files, fset)
+	sigs, rejections, err := extractor.ExtractSignatures(files, fset)
 	if err != nil {
 		return fmt.Errorf("extracting signatures: %w", err)
 	}
+
+	// Fail on malformed WASM patterns
+	if len(rejections) > 0 {
+		fmt.Printf("\nerror: found %d malformed WASM call pattern(s):\n", len(rejections))
+		for _, r := range rejections {
+			fmt.Printf("  %s:%d: %s (%s)\n", r.SourceFile, r.Line, r.Reason, r.FuncName)
+		}
+		fmt.Println("\nExpected pattern:")
+		fmt.Println("  result := funcName(js.Null(), []js.Value{js.ValueOf(arg), ...})")
+		return fmt.Errorf("malformed WASM call patterns detected")
+	}
+
+	// Print found signatures
+	fmt.Printf("\nFound %d WASM function(s):\n", len(sigs))
+	for _, sig := range sigs {
+		fmt.Printf("\n  %s (%s:%d)\n", sig.Name, sig.SourceFile, sig.Line)
+		fmt.Println("    Parameters:")
+		for _, p := range sig.Params {
+			fmt.Printf("      - %s: %s\n", p.Name, p.Type)
+		}
+		fmt.Printf("    Return type: %s\n", sig.Returns.Type)
+	}
+	fmt.Println()
 
 	if len(sigs) == 0 {
 		return fmt.Errorf("no WASM function signatures found\n\n" +

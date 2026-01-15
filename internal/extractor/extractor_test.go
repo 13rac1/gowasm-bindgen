@@ -35,7 +35,7 @@ func TestExtractSignatures(t *testing.T) {
 				t.Fatalf("failed to parse file: %v", err)
 			}
 
-			sigs, err := ExtractSignatures([]*ast.File{file}, fset)
+			sigs, _, err := ExtractSignatures([]*ast.File{file}, fset)
 			if err != nil {
 				t.Fatalf("ExtractSignatures() error = %v", err)
 			}
@@ -71,7 +71,7 @@ func TestExtractParameters_TableDriven(t *testing.T) {
 		t.Fatal("TestWithTableDriven not found")
 	}
 
-	calls := goparser.FindWASMCalls(fn, fset)
+	calls, _ := goparser.FindWASMCalls(fn, fset)
 	if len(calls) == 0 {
 		t.Fatal("no WASM calls found")
 	}
@@ -119,7 +119,7 @@ func TestExtractParameters_NoTable(t *testing.T) {
 		t.Fatal("TestWithoutTable not found")
 	}
 
-	calls := goparser.FindWASMCalls(fn, fset)
+	calls, _ := goparser.FindWASMCalls(fn, fset)
 	if len(calls) == 0 {
 		t.Fatal("no WASM calls found")
 	}
@@ -191,7 +191,7 @@ func TestExtractReturnType_Object(t *testing.T) {
 		t.Fatal("TestReturnsObject not found")
 	}
 
-	calls := goparser.FindWASMCalls(fn, fset)
+	calls, _ := goparser.FindWASMCalls(fn, fset)
 	if len(calls) == 0 {
 		t.Fatal("no WASM calls found")
 	}
@@ -261,7 +261,7 @@ func TestExtractReturnType_Primitive(t *testing.T) {
 				t.Fatalf("%s not found", tt.testFunc)
 			}
 
-			calls := goparser.FindWASMCalls(fn, fset)
+			calls, _ := goparser.FindWASMCalls(fn, fset)
 			if len(calls) == 0 {
 				t.Fatal("no WASM calls found")
 			}
@@ -296,7 +296,7 @@ func TestDetectUnionType(t *testing.T) {
 		t.Fatal("TestReturnsUnion not found")
 	}
 
-	calls := goparser.FindWASMCalls(fn, fset)
+	calls, _ := goparser.FindWASMCalls(fn, fset)
 	if len(calls) == 0 {
 		t.Fatal("no WASM calls found")
 	}
@@ -377,6 +377,53 @@ func TestGenerateArgName(t *testing.T) {
 	}
 }
 
+func TestIsSimpleIdentifier(t *testing.T) {
+	tests := []struct {
+		expr string
+		want bool
+	}{
+		{"userName", true},
+		{"input", true},
+		{"x", true},
+		{"_private", true},
+		{"", false},
+		{"tt.field", false},   // selector
+		{`"hello"`, false},    // string literal
+		{"123", false},        // number literal
+		{"{...}", false},      // composite literal
+		{"'x'", false},        // rune literal
+		{"obj.method", false}, // selector
+	}
+
+	for _, tt := range tests {
+		got := isSimpleIdentifier(tt.expr)
+		if got != tt.want {
+			t.Errorf("isSimpleIdentifier(%q) = %v, want %v", tt.expr, got, tt.want)
+		}
+	}
+}
+
+func TestInferParamName(t *testing.T) {
+	tests := []struct {
+		expr  string
+		index int
+		want  string
+	}{
+		{"userName", 0, "userName"},
+		{"input", 1, "input"},
+		{`"hello"`, 0, "arg0"},  // literal fallback
+		{"tt.field", 2, "arg2"}, // selector fallback
+		{"123", 3, "arg3"},      // number fallback
+	}
+
+	for _, tt := range tests {
+		got := inferParamName(tt.expr, tt.index)
+		if got != tt.want {
+			t.Errorf("inferParamName(%q, %d) = %q, want %q", tt.expr, tt.index, got, tt.want)
+		}
+	}
+}
+
 func TestExtractParameters_ManyParams(t *testing.T) {
 	fset := token.NewFileSet()
 	file, err := parser.ParseFile(fset, "../../testdata/errors/many_params/many_params_test.go", nil, parser.ParseComments)
@@ -390,7 +437,7 @@ func TestExtractParameters_ManyParams(t *testing.T) {
 	}
 
 	fn := testFuncs[0]
-	calls := goparser.FindWASMCalls(fn, fset)
+	calls, _ := goparser.FindWASMCalls(fn, fset)
 	if len(calls) == 0 {
 		t.Fatal("no WASM calls found")
 	}
