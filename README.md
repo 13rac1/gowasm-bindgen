@@ -253,6 +253,53 @@ Expected pattern:
 - **Complex nested types** (nested objects, unions) may need manual refinement
 - **No runtime validation** of generated types against actual WASM behavior
 
+## FAQ
+
+### Why must I write tests?
+
+Go WASM functions have a generic signature that erases type information:
+
+```go
+func myFunc(this js.Value, args []js.Value) interface{}
+```
+
+The `args` parameter is `[]js.Value` (untyped), and the return is `interface{}` (untyped). There's no way to extract parameter names, types, or return types from this signature alone.
+
+Tests provide the missing type information through actual usage:
+- `js.ValueOf(stringVar)` reveals the parameter is a string
+- `result.Int()` reveals the return type is a number
+- Table struct fields like `username string` provide parameter names
+
+This approach has a nice side effect: **if you have tests, your types are correct by definition**. The generated TypeScript matches how your code is actually used.
+
+### Do I need my implementation in a `_test.go` file?
+
+**No.** Your implementation lives in normal `.go` files. Only the test file needs to follow the pattern.
+
+Typical project structure:
+```
+wasm/
+  main.go           # Your WASM implementation
+  main_test.go      # Tests that call your WASM functions (parsed by this tool)
+  types.d.ts        # Generated output
+```
+
+The tool only reads `*_test.go` files to extract signatures. Your implementation can be anywhere—the test just needs to import and call it with the WASM calling convention:
+
+```go
+// main.go - your implementation
+func Greet(this js.Value, args []js.Value) interface{} {
+    name := args[0].String()
+    return "Hello, " + name
+}
+
+// main_test.go - parsed by go-wasm-ts-gen
+func TestGreet(t *testing.T) {
+    result := Greet(js.Null(), []js.Value{js.ValueOf("World")})
+    // ...
+}
+```
+
 ## Development
 
 ### Build
