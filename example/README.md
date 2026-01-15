@@ -24,7 +24,7 @@ make all
 
 ### Using Standard Go (Alternative)
 
-Standard Go also works but produces a much larger binary (~2.4MB vs ~620KB with TinyGo):
+Standard Go also works but produces a much larger binary (~2.4MB vs ~200KB with TinyGo):
 
 ```bash
 make setup-go   # Copy wasm_exec.js from Go installation
