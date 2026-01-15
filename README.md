@@ -6,7 +6,7 @@ Generate TypeScript declaration files from Go unit tests for WASM exports.
 
 **go-wasm-ts-gen** is a zero-annotation TypeScript type generation tool for Go WASM modules. It extracts function signatures directly from your existing unit tests—no special comments, tags, or annotations required.
 
-Instead of maintaining separate type definitions or adding build-time annotations, simply write table-driven tests following standard Go conventions, and this tool will generate accurate TypeScript `.d.ts` files automatically.
+Instead of maintaining separate type definitions or adding build-time annotations, write tests that call your WASM functions and this tool will generate accurate TypeScript `.d.ts` files automatically. Works with both table-driven tests and simple direct calls.
 
 ## Installation
 
@@ -38,6 +38,29 @@ go-wasm-ts-gen \
   --output dist/types.d.ts
 ```
 
+### Output
+
+The tool provides verbose output showing what it found:
+
+```
+Parsing test files...
+
+Found 2 WASM function(s):
+
+  greet (wasm/main_test.go:15)
+    Parameters:
+      - name: string
+    Return type: string
+
+  add (wasm/main_test.go:35)
+    Parameters:
+      - a: number
+      - b: number
+    Return type: number
+
+Generated types.d.ts with 2 function(s)
+```
+
 ## How It Works
 
 The tool analyzes Go test files and extracts WASM function signatures through a multi-stage process:
@@ -45,9 +68,13 @@ The tool analyzes Go test files and extracts WASM function signatures through a 
 1. **Parse Go test files** using `go/parser` to build an AST
 2. **Find Test functions** that contain WASM call patterns
 3. **Extract parameter types** from `js.ValueOf()` calls in test code
-4. **Extract parameter names** from table-driven test struct field names
+4. **Extract parameter names** from:
+   - Table-driven test struct field names (preferred)
+   - Variable names in `js.ValueOf(varName)` expressions
+   - Fallback to `arg0`, `arg1`, etc. for literals
 5. **Infer return types** from result handling methods like `.String()`, `.Int()`, `.Bool()`
-6. **Generate TypeScript declarations** with JSDoc comments containing usage examples
+6. **Validate patterns** and fail with clear errors if malformed
+7. **Generate TypeScript declarations** with JSDoc comments containing usage examples
 
 ### Input Example (Go Test)
 
@@ -137,10 +164,11 @@ The tool maps Go types to TypeScript according to this table:
 
 ## Requirements
 
-### Table-Driven Tests for Named Parameters
+### Parameter Names
 
-To extract parameter names, write table-driven tests with struct fields:
+Parameter names are extracted in order of preference:
 
+**1. Table-driven test struct fields (best):**
 ```go
 tests := []struct {
     username string  // Parameter name: "username"
@@ -151,7 +179,17 @@ tests := []struct {
 }
 ```
 
-Without table-driven tests, parameters will be named generically (`arg0`, `arg1`, etc.).
+**2. Variable names in js.ValueOf():**
+```go
+func TestGreet(t *testing.T) {
+    userName := "Alice"
+    result := greet(js.Null(), []js.Value{
+        js.ValueOf(userName),  // Parameter name: "userName"
+    })
+}
+```
+
+**3. Fallback:** If using literals like `js.ValueOf("hello")` or `js.ValueOf(42)`, parameters are named `arg0`, `arg1`, etc.
 
 ### WASM Call Pattern
 
@@ -183,14 +221,37 @@ result.Get("key")   // infers: any (object/map)
 
 If no accessor method is found, the return type defaults to `any`.
 
+## Error Handling
+
+The tool validates WASM call patterns and fails fast with clear error messages:
+
+```
+error: found 2 malformed WASM call pattern(s):
+  wasm/broken_test.go:15: function has 3 arguments, expected exactly 2 (badFunc)
+  wasm/broken_test.go:25: first argument is not js.Null() (anotherFunc)
+
+Expected pattern:
+  result := funcName(js.Null(), []js.Value{js.ValueOf(arg), ...})
+```
+
+### Detected Errors
+
+| Error | Cause |
+|-------|-------|
+| `function has N arguments, expected exactly 2` | Wrong number of arguments |
+| `first argument is not js.Null()` | Missing or wrong first argument |
+| `second argument is not []js.Value{...}` | Args not passed as slice literal |
+| `function is method/selector` | Using `pkg.Func()` instead of `Func()` |
+| `call is not assigned to a variable` | Missing `result :=` assignment |
+| `return type inferred as 'any'` | No result accessor methods found |
+
 ## Limitations
 
-- **Requires table-driven tests** with struct fields for descriptive parameter names
 - **Only supports js.Value-based WASM patterns** (standard Go WASM signature)
 - **Return type inference is heuristic-based** and may default to `any` for complex types
 - **No support for function overloads** (Go doesn't support them either)
 - **Complex nested types** (nested objects, unions) may need manual refinement
-- **No validation** of generated types against actual WASM behavior at runtime
+- **No runtime validation** of generated types against actual WASM behavior
 
 ## Development
 
