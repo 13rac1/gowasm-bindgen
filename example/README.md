@@ -1,18 +1,29 @@
 # gowasm-bindgen Example
 
-Go WASM functions use an untyped signature (`[]js.Value` in, `interface{}` out)—TypeScript sees them as `any`. This tool extracts parameter names and types from your Go tests to generate a typed TypeScript class API.
+Go WASM functions traditionally required awkward `js.Value` signatures. With gowasm-bindgen, you write normal Go functions with standard types, and the tool generates TypeScript bindings automatically.
 
-## What's Included
+## Directory Structure
 
-- **wasm/main.go** - Go WASM functions (greet, calculate, formatUser, sumNumbers, validateEmail)
-- **wasm/main_test.go** - Table-driven tests that gowasm-bindgen parses to extract types
-- **web/** - TypeScript browser demo using the generated types (strict mode, zero `any`)
-- **verify_test.ts** - TypeScript test to verify generated types work correctly
-- **client.ts** - Generated TypeScript class with typed methods
-- **worker.js** - Generated Web Worker that runs Go WASM in a separate thread
-
-With `--sync` flag, additional files are generated:
-- **client.ts** - Synchronous API (no worker.js, runs on main thread)
+```
+example/
+├── go/                  # Go source code
+│   ├── main.go          # Normal Go functions (no js.Value!)
+│   ├── main_test.go     # Unit tests
+│   └── bindings_gen.go  # Generated WASM bindings (gitignored)
+│
+├── src/                 # TypeScript source
+│   ├── app.ts           # Browser demo app
+│   └── verify_test.ts   # Type verification tests
+│
+├── public/              # Static assets
+│   └── index.html
+│
+├── generated/           # Generated TS/JS (gitignored)
+│   ├── client.ts        # TypeScript class API
+│   └── worker.js        # Web Worker loader
+│
+└── dist/                # Build output (gitignored)
+```
 
 ## Quick Start
 
@@ -21,36 +32,33 @@ With `--sync` flag, additional files are generated:
 make all
 
 # This runs:
-# 1. setup     - Copies wasm_exec.js from TinyGo installation
-# 2. build     - Compiles Go to WASM with TinyGo (example.wasm)
-# 3. generate  - Runs gowasm-bindgen to create client.ts + worker.js
-# 4. verify    - Runs TypeScript tests to validate types
-# 5. web       - Compiles TypeScript demo using the generated types
+# 1. setup     - Copies wasm_exec.js from TinyGo
+# 2. generate  - Creates client.ts, worker.js, bindings_gen.go
+# 3. build     - Compiles Go to WASM with TinyGo
+# 4. typecheck - Validates TypeScript types
+# 5. verify    - Runs TypeScript tests
+# 6. dist      - Bundles everything for serving
 ```
 
 ### Using Standard Go (Alternative)
 
-Standard Go produces larger binaries (~2.4MB vs ~200KB) but has full language support. Use it if your code needs features TinyGo doesn't support (see [TinyGo Language Support](https://tinygo.org/docs/reference/lang-support/)):
+Standard Go produces larger binaries (~2.4MB vs ~200KB) but has full language support:
 
 ```bash
 make setup-go   # Copy wasm_exec.js from Go installation
 make build-go   # Build with standard Go
-make generate
-make verify
 ```
 
-### Worker Mode (Default - Non-blocking)
+## Worker Mode (Default - Non-blocking)
 
-By default, gowasm-bindgen generates a Web Worker wrapper for non-blocking async calls:
+By default, gowasm-bindgen generates a Web Worker for non-blocking async calls:
 
 ```bash
-make generate  # Generate client.ts + worker.js
+make generate  # Creates generated/client.ts + generated/worker.js
 ```
 
-Then use the class-based API:
-
 ```typescript
-import { Main } from './client';
+import { Main } from './generated/client';
 
 const wasm = await Main.init('./worker.js');
 
@@ -66,11 +74,11 @@ wasm.terminate();  // Clean up when done
 Use `--sync` flag for synchronous calls that block the main thread:
 
 ```bash
-make generate-sync  # Generate client.ts only (no worker.js)
+make generate-sync  # Creates generated/client.ts only (no worker.js)
 ```
 
 ```typescript
-import { Main } from './client';
+import { Main } from './generated/client';
 
 const wasm = await Main.init('./example.wasm');  // async load
 const greeting = wasm.greet('World');  // sync call, no await
@@ -78,17 +86,12 @@ const greeting = wasm.greet('World');  // sync call, no await
 
 ## Generated Output
 
-After running `make generate`, you'll have `client.ts` and `worker.js`:
+### TypeScript Client (`generated/client.ts`)
 
 ```typescript
-// client.ts - Class-based API with typed methods
 export interface FormatUserResult {
   displayName: string;
   status: string;
-}
-export interface ValidateEmailResult {
-  valid: boolean;
-  error: string;
 }
 
 export class Main {
@@ -96,71 +99,55 @@ export class Main {
   greet(name: string): Promise<string>;
   calculate(a: number, b: number, op: string): Promise<number>;
   formatUser(name: string, age: number, active: boolean): Promise<FormatUserResult>;
-  sumNumbers(input: string): Promise<number>;
-  validateEmail(email: string): Promise<ValidateEmailResult>;
   terminate(): void;
+}
+```
+
+### Go Bindings (`go/bindings_gen.go`)
+
+Handles `js.Value` conversions automatically:
+
+```go
+func init() {
+    js.Global().Set("greet", js.FuncOf(wasmGreet))
+    // ...
+}
+
+func wasmGreet(_ js.Value, args []js.Value) interface{} {
+    name := args[0].String()
+    return Greet(name)
 }
 ```
 
 ## Try the Web Demo
 
 ```bash
-# Build and start local server
-make serve
-
-# Open http://localhost:8080 in your browser
+make serve  # Build and start server at http://localhost:8080
 ```
-
-The `make serve` command:
-1. Builds everything (WASM, TypeScript, types)
-2. Copies all artifacts to `dist/`
-3. Starts a local server using `npx serve`
 
 ## How It Works
 
-1. **Write Go WASM functions** with the standard signature:
+1. **Write normal Go functions** in `go/main.go`:
    ```go
-   func greet(this js.Value, args []js.Value) interface{} {
-       name := args[0].String()
+   func Greet(name string) string {
        return "Hello, " + name + "!"
    }
    ```
 
-2. **Write tests** that call your functions:
-   ```go
-   func TestGreet(t *testing.T) {
-       tests := []struct {
-           name string  // <- gowasm-bindgen uses this as the parameter name
-           want string
-       }{
-           {name: "World", want: "Hello, World!"},
-       }
-       for _, tt := range tests {
-           result := greet(js.Null(), []js.Value{
-               js.ValueOf(tt.name),  // <- type inferred from js.ValueOf()
-           })
-           // ...
-       }
-   }
-   ```
-
-3. **Run gowasm-bindgen** to extract types from tests:
+2. **Run gowasm-bindgen**:
    ```bash
-   gowasm-bindgen --tests "wasm/*_test.go" --output client.ts
+   gowasm-bindgen go/main.go \
+       --output generated/client.ts \
+       --go-output go/bindings_gen.go
    ```
 
-## WASM Functions in This Example
-
-| Function | Parameters | Return Type | Description |
-|----------|------------|-------------|-------------|
-| `greet` | `name: string` | `string` | Returns a greeting |
-| `calculate` | `a: number, b: number, op: string` | `number` | Basic arithmetic |
-| `formatUser` | `name: string, age: number, active: boolean` | `object` | Format user data |
-| `sumNumbers` | `input: string` | `number` | Sum comma-separated numbers |
-| `validateEmail` | `email: string` | `object` | Validate email address |
+3. **Build WASM**:
+   ```bash
+   tinygo build -o dist/example.wasm -target wasm ./go/
+   ```
 
 ## Requirements
 
-- [TinyGo](https://tinygo.org/getting-started/install/) (recommended for small WASM binaries)
-- Go 1.21+ (alternative, produces larger binaries)
-- Node.js 18+ (for TypeScript tooling and local server)
+- [TinyGo](https://tinygo.org/getting-started/install/) (recommended)
+- Go 1.21+ (alternative, larger binaries)
+- Node.js 18+

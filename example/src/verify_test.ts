@@ -26,18 +26,18 @@
  */
 import { test } from "node:test";
 import assert from "node:assert";
-import type { Main, FormatUserResult, ValidateEmailResult } from "./client";
+import type { Main, FormatUserResult, ValidateEmailResult } from "../generated/client";
 
 void test("Generated types compile and match WASM signatures", async () => {
   // Type-only test: verify the generated interfaces exist and have correct shapes
 
   // Verify FormatUserResult interface
-  const formatUserResult: FormatUserResult = {
+  const user: FormatUserResult = {
     displayName: "Test User (30)",
     status: "active"
   };
-  assert.strictEqual(formatUserResult.displayName, "Test User (30)");
-  assert.strictEqual(formatUserResult.status, "active");
+  assert.strictEqual(user.displayName, "Test User (30)");
+  assert.strictEqual(user.status, "active");
 
   // Verify ValidateEmailResult interface
   const validEmailResult: ValidateEmailResult = {
@@ -58,17 +58,26 @@ void test("Generated types compile and match WASM signatures", async () => {
   // the generated class has the correct method signatures
   const mockWasm: Pick<Main, 'greet' | 'calculate' | 'formatUser' | 'sumNumbers' | 'validateEmail' | 'terminate'> = {
     greet: async (name: string): Promise<string> => `Hello, ${name}!`,
-    calculate: async (a: number, b: number, _op: string): Promise<number> => a + b,
+    calculate: async (a: number, b: number, op: string): Promise<number> => {
+      switch (op) {
+        case "add": return a + b;
+        case "sub": return a - b;
+        case "mul": return a * b;
+        case "div": return b === 0 ? 0 : a / b;
+        default: return 0;
+      }
+    },
     formatUser: async (name: string, age: number, active: boolean): Promise<FormatUserResult> => ({
       displayName: `${name} (${age})`,
       status: active ? "active" : "inactive"
     }),
     sumNumbers: async (input: string): Promise<number> => {
-      return input.split(',').map(Number).reduce((a, b) => a + b, 0);
+      if (input === "") return 0;
+      return input.split(',').map(s => parseInt(s.trim(), 10) || 0).reduce((a, b) => a + b, 0);
     },
     validateEmail: async (email: string): Promise<ValidateEmailResult> => ({
       valid: email.includes('@'),
-      error: email.includes('@') ? '' : 'Invalid email'
+      error: email.includes('@') ? '' : 'missing @ symbol'
     }),
     terminate: (): void => {}
   };
@@ -80,16 +89,41 @@ void test("Generated types compile and match WASM signatures", async () => {
   const sum = await mockWasm.calculate(10, 5, "add");
   assert.strictEqual(sum, 15);
 
-  const user = await mockWasm.formatUser("Alice", 30, true);
-  assert.strictEqual(user.displayName, "Alice (30)");
-  assert.strictEqual(user.status, "active");
+  const subtraction = await mockWasm.calculate(10, 5, "sub");
+  assert.strictEqual(subtraction, 5);
+
+  const product = await mockWasm.calculate(10, 5, "mul");
+  assert.strictEqual(product, 50);
+
+  const division = await mockWasm.calculate(10, 5, "div");
+  assert.strictEqual(division, 2);
+
+  const divisionByZero = await mockWasm.calculate(10, 0, "div");
+  assert.strictEqual(divisionByZero, 0);
+
+  const formattedUser = await mockWasm.formatUser("Alice", 30, true);
+  assert.strictEqual(formattedUser.displayName, "Alice (30)");
+  assert.strictEqual(formattedUser.status, "active");
+
+  const inactiveUser = await mockWasm.formatUser("Bob", 25, false);
+  assert.strictEqual(inactiveUser.displayName, "Bob (25)");
+  assert.strictEqual(inactiveUser.status, "inactive");
 
   const numbersSum = await mockWasm.sumNumbers("1,2,3");
   assert.strictEqual(numbersSum, 6);
 
+  const spacedSum = await mockWasm.sumNumbers("10, 20, 30, 40");
+  assert.strictEqual(spacedSum, 100);
+
+  const emptySum = await mockWasm.sumNumbers("");
+  assert.strictEqual(emptySum, 0);
+
   const validEmail = await mockWasm.validateEmail("user@example.com");
   assert.strictEqual(validEmail.valid, true);
+  assert.strictEqual(validEmail.error, "");
 
   const invalidEmail = await mockWasm.validateEmail("invalid");
   assert.strictEqual(invalidEmail.valid, false);
+  assert.strictEqual(typeof invalidEmail.error, "string");
+  assert.ok(invalidEmail.error.length > 0);
 });

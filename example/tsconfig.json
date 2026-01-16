@@ -1,10 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
+    "module": "ES2022",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "skipLibCheck": true,
+    "noEmit": true,
     "types": ["node"],
 
     "strict": true,
@@ -17,5 +18,5 @@
     "useUnknownInCatchVariables": true,
     "noPropertyAccessFromIndexSignature": true
   },
-  "include": ["verify_test.ts", "types.d.ts", "wasm_exec.d.ts"]
+  "include": ["src/**/*.ts", "generated/**/*.ts"]
 }

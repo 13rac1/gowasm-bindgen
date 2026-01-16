@@ -1,82 +1,84 @@
-.PHONY: all build generate generate-worker typecheck verify serve clean setup format lint check web dist
+.PHONY: all build generate generate-sync typecheck verify serve clean setup format lint check dist
 
-# Build directory for all artifacts
+# Directories
+GO_SRC := go
+SRC := src
+GENERATED := generated
+PUBLIC := public
 DIST := dist
 
 # Build WASM, generate types, and verify
-all: setup build generate typecheck verify dist
+all: setup generate build typecheck verify dist
 
 # Copy wasm_exec.js from TinyGo installation
 setup:
 	cp "$$(tinygo env TINYGOROOT)/targets/wasm_exec.js" .
 
 # Build the WASM binary with TinyGo (optimized for size)
-# Flags:
-#   -target wasm    Target WebAssembly
-#   -opt=z          Optimize aggressively for size (like gcc -Oz)
-#   -no-debug       Strip debug symbols and DWARF info
-#   -panic=trap     Use wasm trap instruction for panics instead of full panic
-#                   handler (smaller but no stack traces on panic)
 build:
-	tinygo build -o example.wasm \
+	tinygo build -o $(DIST)/example.wasm \
 		-target wasm \
 		-opt=z \
 		-no-debug \
 		-panic=trap \
-		./wasm/
+		./$(GO_SRC)/
 
 # Debug build with TinyGo (larger but has debug info and panic messages)
 build-debug:
-	tinygo build -o example.wasm -target wasm ./wasm/
+	tinygo build -o $(DIST)/example.wasm -target wasm ./$(GO_SRC)/
 
 # Alternative: Build with standard Go (produces ~2.4MB binary)
 build-go:
-	GOOS=js GOARCH=wasm go build -o example.wasm ./wasm/
+	GOOS=js GOARCH=wasm go build -o $(DIST)/example.wasm ./$(GO_SRC)/
 
 setup-go:
 	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" .
 
 # Generate TypeScript client with Web Worker (default - async, non-blocking)
 generate:
-	go run ../cmd/gowasm-bindgen/main.go --tests "wasm/*_test.go" --output client.ts
+	@mkdir -p $(GENERATED)
+	go run ../cmd/gowasm-bindgen/main.go \
+		--output $(GENERATED)/client.ts \
+		--go-output $(GO_SRC)/bindings_gen.go \
+		$(GO_SRC)/main.go
 
 # Generate synchronous API (blocks main thread)
 generate-sync:
-	go run ../cmd/gowasm-bindgen/main.go --tests "wasm/*_test.go" --output client.ts --sync
+	@mkdir -p $(GENERATED)
+	go run ../cmd/gowasm-bindgen/main.go \
+		--output $(GENERATED)/client.ts \
+		--go-output $(GO_SRC)/bindings_gen.go \
+		--sync \
+		$(GO_SRC)/main.go
 
 # Type-check TypeScript (strict verification that generated types work)
 typecheck:
 	npx tsc --noEmit --project tsconfig.json
-	npx tsc --noEmit --project web/tsconfig.json
 
 # Run TypeScript tests (also exercises the WASM functions at runtime)
 verify:
-	npx tsx --test verify_test.ts
+	npx tsx --test $(SRC)/verify_test.ts
 
 # Build dist directory with runtime artifacts for serving
-dist: setup build generate
+dist: setup generate build
 	@mkdir -p $(DIST)
-	cp example.wasm $(DIST)/
 	cp wasm_exec.js $(DIST)/
-	cp web/index.html $(DIST)/
-	npx esbuild web/app.ts --bundle --outfile=$(DIST)/app.js
+	cp $(GENERATED)/worker.js $(DIST)/
+	cp $(PUBLIC)/index.html $(DIST)/
+	npx esbuild $(SRC)/app.ts --bundle --outfile=$(DIST)/app.js
 
 # Start a local web server to test the demo
 serve: all
 	@echo "Starting server at http://localhost:8080"
 	npx serve $(DIST) -l 8080
 
-# Compile TypeScript web demo (uses generated types.d.ts) - legacy target
-web: generate
-	npx esbuild web/app.ts --bundle --outfile=web/app.js
-
 # Format code
 format:
-	gofmt -w .
+	gofmt -w $(GO_SRC)/
 
 # Lint code (requires WASM build tags for syscall/js)
 lint:
-	GOOS=js GOARCH=wasm golangci-lint run ./...
+	GOOS=js GOARCH=wasm golangci-lint run ./$(GO_SRC)/...
 
 # Run format and lint
 check: format lint
@@ -84,5 +86,6 @@ check: format lint
 # Clean generated files
 clean:
 	rm -rf $(DIST)
-	rm -f example.wasm wasm_exec.js web/app.js
-	rm -f client.ts worker.js types.d.ts wasm_exec.d.ts
+	rm -rf $(GENERATED)
+	rm -f wasm_exec.js
+	rm -f $(GO_SRC)/bindings_gen.go

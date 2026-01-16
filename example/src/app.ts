@@ -1,4 +1,4 @@
-import { Main } from '../client';
+import { Main } from '../generated/client';
 
 /**
  * Type-safe DOM element accessor.

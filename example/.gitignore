@@ -1,13 +1,11 @@
 # Build output
 dist/
 
-# Generated files (kept in working dir for verification)
-example.wasm
-types.d.ts
-wasm_exec.js
-wasm_exec.d.ts
-web/app.js
+# Generated TS/JS
+generated/
 
-# Worker mode generated files
-client.ts
-worker.js
+# Generated Go bindings
+go/bindings_gen.go
+
+# Copied runtime
+wasm_exec.js
