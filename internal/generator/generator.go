@@ -4,28 +4,28 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/13rac1/gowasm-bindgen/internal/extractor"
+	"github.com/13rac1/gowasm-bindgen/internal/parser"
 )
 
 // Generate creates TypeScript class-based client for sync mode.
 // This generates a class that wraps globalThis function calls.
-func Generate(sigs []extractor.FunctionSignature, packageName string) string {
-	className := toClassName(packageName)
+func Generate(parsed *parser.ParsedFile) string {
+	className := toClassName(parsed.Package)
 
 	var b strings.Builder
-	b.WriteString(GenerateHeader(packageName))
+	b.WriteString(GenerateHeader(parsed.Package))
 	b.WriteString("\n\n")
 
-	// Generate named interfaces for object return types
-	for _, sig := range sigs {
-		if iface := GenerateExportedInterface(sig); iface != "" {
+	// Generate named interfaces for struct return types
+	for _, fn := range parsed.Functions {
+		if iface := GenerateInterfaceForFunction(fn, parsed.Types); iface != "" {
 			b.WriteString(iface)
 			b.WriteString("\n\n")
 		}
 	}
 
 	// Generate the class
-	b.WriteString(GenerateClass(sigs, className))
+	b.WriteString(GenerateClass(parsed.Functions, className))
 
 	return b.String()
 }
@@ -37,7 +37,7 @@ func GenerateHeader(packageName string) string {
 }
 
 // GenerateClass creates the TypeScript class with sync methods.
-func GenerateClass(sigs []extractor.FunctionSignature, className string) string {
+func GenerateClass(functions []parser.GoFunction, className string) string {
 	var b strings.Builder
 
 	b.WriteString("export class ")
@@ -58,9 +58,9 @@ func GenerateClass(sigs []extractor.FunctionSignature, className string) string 
 	b.WriteString("  }\n")
 
 	// Instance methods
-	for _, sig := range sigs {
+	for _, fn := range functions {
 		b.WriteString("\n")
-		b.WriteString(GenerateClassMethod(sig))
+		b.WriteString(GenerateClassMethod(fn))
 	}
 
 	b.WriteString("}\n")
@@ -68,45 +68,54 @@ func GenerateClass(sigs []extractor.FunctionSignature, className string) string 
 }
 
 // GenerateClassMethod creates a single instance method that calls globalThis.
-func GenerateClassMethod(sig extractor.FunctionSignature) string {
+func GenerateClassMethod(fn parser.GoFunction) string {
 	var b strings.Builder
 
 	// JSDoc if present
-	jsDoc := GenerateJSDoc(sig)
-	if jsDoc != "" {
-		// Indent JSDoc for class method
-		lines := strings.Split(jsDoc, "\n")
+	if fn.Doc != "" {
+		lines := strings.Split(fn.Doc, "\n")
+		b.WriteString("  /**\n")
 		for _, line := range lines {
-			b.WriteString("  ")
+			b.WriteString("   * ")
 			b.WriteString(line)
 			b.WriteString("\n")
 		}
+		b.WriteString("   */\n")
 	}
 
-	params := GenerateParams(sig.Params)
+	params := GenerateFunctionParams(fn.Params)
 
-	// Use named interface for object returns, otherwise use the type directly
+	// Determine return type
 	var returnType string
-	if len(sig.Returns.Fields) > 0 {
-		returnType = InterfaceName(sig.Name)
+	hasError := len(fn.Returns) > 0 && fn.Returns[len(fn.Returns)-1].IsError
+	hasNonErrorReturn := len(fn.Returns) > 0 && (!hasError || len(fn.Returns) > 1)
+
+	if hasNonErrorReturn {
+		returnType = parser.GoTypeToTS(fn.Returns[0])
+		// For struct returns, use interface name
+		if fn.Returns[0].Kind == parser.KindStruct {
+			returnType = InterfaceName(fn.Name)
+		}
 	} else {
-		returnType = sig.Returns.Type
+		returnType = "void"
 	}
+
+	funcName := lowerFirst(fn.Name)
 
 	b.WriteString("  ")
-	b.WriteString(sig.Name)
+	b.WriteString(funcName)
 	b.WriteString("(")
 	b.WriteString(params)
 	b.WriteString("): ")
 	b.WriteString(returnType)
 	b.WriteString(" {\n")
 	b.WriteString("    return (globalThis as any).")
-	b.WriteString(sig.Name)
+	b.WriteString(funcName)
 	b.WriteString("(")
 
 	// Pass through parameters
-	argNames := make([]string, len(sig.Params))
-	for i, p := range sig.Params {
+	argNames := make([]string, len(fn.Params))
+	for i, p := range fn.Params {
 		argNames[i] = p.Name
 	}
 	b.WriteString(strings.Join(argNames, ", "))
@@ -117,83 +126,56 @@ func GenerateClassMethod(sig extractor.FunctionSignature) string {
 	return b.String()
 }
 
-// GenerateJSDoc creates JSDoc comment block with description and examples.
-func GenerateJSDoc(sig extractor.FunctionSignature) string {
-	if sig.Doc == "" && len(sig.Examples) == 0 {
-		return ""
-	}
-
-	var b strings.Builder
-	b.WriteString("/**")
-
-	if sig.Doc != "" {
-		b.WriteString("\n * ")
-		b.WriteString(sig.Doc)
-	}
-
-	if len(sig.Examples) > 0 {
-		if sig.Doc != "" {
-			b.WriteString("\n *")
-		}
-		for _, ex := range sig.Examples {
-			b.WriteString("\n * @example\n")
-			b.WriteString(FormatExample(sig, ex))
-		}
-	}
-
-	b.WriteString("\n */")
-	return b.String()
-}
-
-// GenerateParams formats the parameter list as TypeScript.
-func GenerateParams(params []extractor.Parameter) string {
+// GenerateFunctionParams formats the parameter list as TypeScript.
+func GenerateFunctionParams(params []parser.GoParameter) string {
 	if len(params) == 0 {
 		return ""
 	}
 
 	parts := make([]string, len(params))
 	for i, p := range params {
-		parts[i] = fmt.Sprintf("%s: %s", p.Name, p.Type)
+		parts[i] = fmt.Sprintf("%s: %s", p.Name, parser.GoTypeToTS(p.Type))
 	}
 	return strings.Join(parts, ", ")
 }
 
-// FormatExample formats a single example for JSDoc.
-func FormatExample(sig extractor.FunctionSignature, ex extractor.Example) string {
-	var b strings.Builder
-
-	if ex.Name != "" {
-		b.WriteString(" * // ")
-		b.WriteString(ex.Name)
-		b.WriteString("\n")
-	}
-
-	b.WriteString(" * ")
-	b.WriteString(sig.Name)
-	b.WriteString("(")
-	b.WriteString(strings.Join(ex.Args, ", "))
-	b.WriteString(")")
-
-	return b.String()
-}
-
-// GenerateExportedInterface creates an exported interface for object return types.
-// Returns empty string if the function doesn't return an object type.
-func GenerateExportedInterface(sig extractor.FunctionSignature) string {
-	if len(sig.Returns.Fields) == 0 {
+// GenerateInterfaceForFunction creates an exported interface if the function returns a struct.
+// Returns empty string if the function doesn't return a struct type.
+func GenerateInterfaceForFunction(fn parser.GoFunction, types map[string]*parser.GoType) string {
+	if len(fn.Returns) == 0 {
 		return ""
 	}
 
+	// Get the non-error return type
+	hasError := fn.Returns[len(fn.Returns)-1].IsError
+	if !hasError || len(fn.Returns) > 1 {
+		returnType := fn.Returns[0]
+		if returnType.Kind == parser.KindStruct {
+			return generateStructInterface(InterfaceName(fn.Name), returnType)
+		}
+	}
+
+	return ""
+}
+
+// generateStructInterface creates an interface from a struct type
+func generateStructInterface(name string, structType parser.GoType) string {
 	var b strings.Builder
 	b.WriteString("export interface ")
-	b.WriteString(InterfaceName(sig.Name))
+	b.WriteString(name)
 	b.WriteString(" {\n")
 
-	for _, field := range sig.Returns.Fields {
+	for _, field := range structType.Fields {
+		fieldName := field.JSONTag
+		if fieldName == "" {
+			// Use lowercase first letter
+			fieldName = strings.ToLower(field.Name[:1]) + field.Name[1:]
+		}
+
 		b.WriteString("  ")
-		b.WriteString(field.Name)
+		b.WriteString(fieldName)
 		b.WriteString(": ")
-		b.WriteString(field.Type)
+		b.WriteString(parser.GoTypeToTS(field.Type))
 		b.WriteString(";\n")
 	}
 

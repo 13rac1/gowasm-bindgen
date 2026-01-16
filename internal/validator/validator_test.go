@@ -1,105 +1,333 @@
 package validator
 
 import (
-	"go/ast"
-	"go/parser"
-	"go/token"
 	"strings"
 	"testing"
 
-	"github.com/13rac1/gowasm-bindgen/internal/extractor"
+	"github.com/13rac1/gowasm-bindgen/internal/parser"
 )
 
-func TestValidate_Success(t *testing.T) {
-	sigs := []extractor.FunctionSignature{
-		{
-			Name:       "greet",
-			SourceFile: "test.go",
-			Line:       10,
-			Params: []extractor.Parameter{
-				{Name: "name", Type: "string"},
+func TestValidateFunctions_Success(t *testing.T) {
+	parsed := &parser.ParsedFile{
+		Package: "wasm",
+		Functions: []parser.GoFunction{
+			{
+				Name: "Greet",
+				Params: []parser.GoParameter{
+					{Name: "name", Type: parser.GoType{Name: "string", Kind: parser.KindPrimitive}},
+				},
+				Returns: []parser.GoType{
+					{Name: "string", Kind: parser.KindPrimitive},
+				},
 			},
-			Returns: extractor.ReturnType{Type: "string"},
 		},
+		Types: map[string]*parser.GoType{},
 	}
 
-	err := Validate(sigs)
+	err := ValidateFunctions(parsed)
 	if err != nil {
 		t.Errorf("expected no error, got: %v", err)
 	}
 }
 
-func TestValidate_AnyReturnType(t *testing.T) {
-	sigs := []extractor.FunctionSignature{
-		{
-			Name:       "process",
-			SourceFile: "wasm/test.go",
-			Line:       25,
-			Params: []extractor.Parameter{
-				{Name: "data", Type: "string"},
+func TestValidateFunctions_AllPrimitives(t *testing.T) {
+	parsed := &parser.ParsedFile{
+		Package: "wasm",
+		Functions: []parser.GoFunction{
+			{
+				Name: "ProcessAll",
+				Params: []parser.GoParameter{
+					{Name: "s", Type: parser.GoType{Name: "string", Kind: parser.KindPrimitive}},
+					{Name: "i", Type: parser.GoType{Name: "int", Kind: parser.KindPrimitive}},
+					{Name: "i64", Type: parser.GoType{Name: "int64", Kind: parser.KindPrimitive}},
+					{Name: "f", Type: parser.GoType{Name: "float64", Kind: parser.KindPrimitive}},
+					{Name: "b", Type: parser.GoType{Name: "bool", Kind: parser.KindPrimitive}},
+				},
+				Returns: []parser.GoType{
+					{Name: "int", Kind: parser.KindPrimitive},
+				},
 			},
-			Returns: extractor.ReturnType{Type: "any"},
 		},
+		Types: map[string]*parser.GoType{},
 	}
 
-	err := Validate(sigs)
+	err := ValidateFunctions(parsed)
+	if err != nil {
+		t.Errorf("expected no error for primitives, got: %v", err)
+	}
+}
+
+func TestValidateFunctions_Slices(t *testing.T) {
+	parsed := &parser.ParsedFile{
+		Package: "wasm",
+		Functions: []parser.GoFunction{
+			{
+				Name: "ProcessSlice",
+				Params: []parser.GoParameter{
+					{Name: "items", Type: parser.GoType{
+						Name: "[]string",
+						Kind: parser.KindSlice,
+						Elem: &parser.GoType{Name: "string", Kind: parser.KindPrimitive},
+					}},
+				},
+				Returns: []parser.GoType{
+					{
+						Name: "[]int",
+						Kind: parser.KindSlice,
+						Elem: &parser.GoType{Name: "int", Kind: parser.KindPrimitive},
+					},
+				},
+			},
+		},
+		Types: map[string]*parser.GoType{},
+	}
+
+	err := ValidateFunctions(parsed)
+	if err != nil {
+		t.Errorf("expected no error for slices, got: %v", err)
+	}
+}
+
+func TestValidateFunctions_StringMap(t *testing.T) {
+	parsed := &parser.ParsedFile{
+		Package: "wasm",
+		Functions: []parser.GoFunction{
+			{
+				Name: "ProcessMap",
+				Params: []parser.GoParameter{
+					{Name: "data", Type: parser.GoType{
+						Name:  "map[string]int",
+						Kind:  parser.KindMap,
+						Key:   &parser.GoType{Name: "string", Kind: parser.KindPrimitive},
+						Value: &parser.GoType{Name: "int", Kind: parser.KindPrimitive},
+					}},
+				},
+				Returns: []parser.GoType{
+					{Name: "bool", Kind: parser.KindPrimitive},
+				},
+			},
+		},
+		Types: map[string]*parser.GoType{},
+	}
+
+	err := ValidateFunctions(parsed)
+	if err != nil {
+		t.Errorf("expected no error for string map, got: %v", err)
+	}
+}
+
+func TestValidateFunctions_NonStringMapKey(t *testing.T) {
+	parsed := &parser.ParsedFile{
+		Package: "wasm",
+		Functions: []parser.GoFunction{
+			{
+				Name: "ProcessMap",
+				Params: []parser.GoParameter{
+					{Name: "data", Type: parser.GoType{
+						Name:  "map[int]string",
+						Kind:  parser.KindMap,
+						Key:   &parser.GoType{Name: "int", Kind: parser.KindPrimitive},
+						Value: &parser.GoType{Name: "string", Kind: parser.KindPrimitive},
+					}},
+				},
+				Returns: []parser.GoType{
+					{Name: "bool", Kind: parser.KindPrimitive},
+				},
+			},
+		},
+		Types: map[string]*parser.GoType{},
+	}
+
+	err := ValidateFunctions(parsed)
 	if err == nil {
-		t.Fatal("expected error for 'any' return type")
+		t.Fatal("expected error for non-string map key")
 	}
 
 	errStr := err.Error()
-	if !strings.Contains(errStr, "return type inferred as 'any'") {
-		t.Errorf("expected error about 'any' return type, got: %s", errStr)
-	}
-	if !strings.Contains(errStr, "wasm/test.go:25") {
-		t.Errorf("expected file:line in error, got: %s", errStr)
+	if !strings.Contains(errStr, "only map[string]T is supported") {
+		t.Errorf("expected error about map key type, got: %s", errStr)
 	}
 }
 
-func TestValidate_FallbackParamsAllowed(t *testing.T) {
-	// Fallback param names (arg0, arg1) are now acceptable
-	sigs := []extractor.FunctionSignature{
-		{
-			Name:       "compute",
-			SourceFile: "wasm/calc.go",
-			Line:       15,
-			Params: []extractor.Parameter{
-				{Name: "arg0", Type: "number"},
-				{Name: "arg1", Type: "number"},
+func TestValidateFunctions_ErrorReturn(t *testing.T) {
+	parsed := &parser.ParsedFile{
+		Package: "wasm",
+		Functions: []parser.GoFunction{
+			{
+				Name: "MightFail",
+				Params: []parser.GoParameter{
+					{Name: "x", Type: parser.GoType{Name: "int", Kind: parser.KindPrimitive}},
+				},
+				Returns: []parser.GoType{
+					{Name: "string", Kind: parser.KindPrimitive},
+					{Name: "error", Kind: parser.KindError, IsError: true},
+				},
 			},
-			Returns: extractor.ReturnType{Type: "number"},
 		},
+		Types: map[string]*parser.GoType{},
 	}
 
-	err := Validate(sigs)
+	err := ValidateFunctions(parsed)
 	if err != nil {
-		t.Errorf("expected no error for fallback param names, got: %v", err)
+		t.Errorf("expected no error for (T, error) return, got: %v", err)
 	}
 }
 
-func TestValidate_MultipleErrors(t *testing.T) {
-	sigs := []extractor.FunctionSignature{
-		{
-			Name:       "func1",
-			SourceFile: "test1.go",
-			Line:       10,
-			Params: []extractor.Parameter{
-				{Name: "arg0", Type: "string"},
+func TestValidateFunctions_ErrorNotLast(t *testing.T) {
+	parsed := &parser.ParsedFile{
+		Package: "wasm",
+		Functions: []parser.GoFunction{
+			{
+				Name:   "BadReturn",
+				Params: []parser.GoParameter{},
+				Returns: []parser.GoType{
+					{Name: "error", Kind: parser.KindError, IsError: true},
+					{Name: "string", Kind: parser.KindPrimitive},
+				},
 			},
-			Returns: extractor.ReturnType{Type: "any"},
 		},
-		{
-			Name:       "func2",
-			SourceFile: "test2.go",
-			Line:       20,
-			Params: []extractor.Parameter{
-				{Name: "arg0", Type: "number"},
-			},
-			Returns: extractor.ReturnType{Type: "any"},
-		},
+		Types: map[string]*parser.GoType{},
 	}
 
-	err := Validate(sigs)
+	err := ValidateFunctions(parsed)
+	if err == nil {
+		t.Fatal("expected error when error return is not last")
+	}
+
+	errStr := err.Error()
+	if !strings.Contains(errStr, "error return type must be last") {
+		t.Errorf("expected error about error position, got: %s", errStr)
+	}
+}
+
+func TestValidateFunctions_Struct(t *testing.T) {
+	parsed := &parser.ParsedFile{
+		Package: "wasm",
+		Functions: []parser.GoFunction{
+			{
+				Name:   "GetUser",
+				Params: []parser.GoParameter{},
+				Returns: []parser.GoType{
+					{
+						Name: "User",
+						Kind: parser.KindStruct,
+						Fields: []parser.GoField{
+							{Name: "Name", Type: parser.GoType{Name: "string", Kind: parser.KindPrimitive}},
+							{Name: "Age", Type: parser.GoType{Name: "int", Kind: parser.KindPrimitive}},
+						},
+					},
+				},
+			},
+		},
+		Types: map[string]*parser.GoType{},
+	}
+
+	err := ValidateFunctions(parsed)
+	if err != nil {
+		t.Errorf("expected no error for struct return, got: %v", err)
+	}
+}
+
+func TestValidateFunctions_Pointer(t *testing.T) {
+	parsed := &parser.ParsedFile{
+		Package: "wasm",
+		Functions: []parser.GoFunction{
+			{
+				Name: "GetOptional",
+				Params: []parser.GoParameter{
+					{Name: "id", Type: parser.GoType{Name: "int", Kind: parser.KindPrimitive}},
+				},
+				Returns: []parser.GoType{
+					{
+						Name: "*string",
+						Kind: parser.KindPointer,
+						Elem: &parser.GoType{Name: "string", Kind: parser.KindPrimitive},
+					},
+				},
+			},
+		},
+		Types: map[string]*parser.GoType{},
+	}
+
+	err := ValidateFunctions(parsed)
+	if err != nil {
+		t.Errorf("expected no error for pointer type, got: %v", err)
+	}
+}
+
+func TestValidateFunctions_UnsupportedTypes(t *testing.T) {
+	tests := []struct {
+		name     string
+		typeName string
+		wantErr  string
+	}{
+		{"channel", "chan", "unsupported type"},
+		{"function", "func", "unsupported type"},
+		{"interface", "interface", "unsupported type"},
+		{"external type", "time.Time", "unsupported type"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parsed := &parser.ParsedFile{
+				Package: "wasm",
+				Functions: []parser.GoFunction{
+					{
+						Name: "BadFunc",
+						Params: []parser.GoParameter{
+							{Name: "x", Type: parser.GoType{Name: tt.typeName, Kind: parser.KindUnsupported}},
+						},
+						Returns: []parser.GoType{},
+					},
+				},
+				Types: map[string]*parser.GoType{},
+			}
+
+			err := ValidateFunctions(parsed)
+			if err == nil {
+				t.Fatalf("expected error for %s type", tt.name)
+			}
+
+			if !strings.Contains(err.Error(), tt.wantErr) {
+				t.Errorf("expected error containing %q, got: %s", tt.wantErr, err.Error())
+			}
+		})
+	}
+}
+
+func TestValidateFunctions_MultipleErrors(t *testing.T) {
+	parsed := &parser.ParsedFile{
+		Package: "wasm",
+		Functions: []parser.GoFunction{
+			{
+				Name: "Func1",
+				Params: []parser.GoParameter{
+					{Name: "data", Type: parser.GoType{
+						Name:  "map[int]string",
+						Kind:  parser.KindMap,
+						Key:   &parser.GoType{Name: "int", Kind: parser.KindPrimitive},
+						Value: &parser.GoType{Name: "string", Kind: parser.KindPrimitive},
+					}},
+				},
+				Returns: []parser.GoType{},
+			},
+			{
+				Name: "Func2",
+				Params: []parser.GoParameter{
+					{Name: "data", Type: parser.GoType{
+						Name:  "map[bool]int",
+						Kind:  parser.KindMap,
+						Key:   &parser.GoType{Name: "bool", Kind: parser.KindPrimitive},
+						Value: &parser.GoType{Name: "int", Kind: parser.KindPrimitive},
+					}},
+				},
+				Returns: []parser.GoType{},
+			},
+		},
+		Types: map[string]*parser.GoType{},
+	}
+
+	err := ValidateFunctions(parsed)
 	if err == nil {
 		t.Fatal("expected errors")
 	}
@@ -109,43 +337,7 @@ func TestValidate_MultipleErrors(t *testing.T) {
 		t.Fatalf("expected ValidationError, got %T", err)
 	}
 
-	// func1 has 1 error (any return)
-	// func2 has 1 error (any return)
 	if len(verr.Errors) != 2 {
 		t.Errorf("expected 2 errors, got %d: %v", len(verr.Errors), verr.Errors)
 	}
-}
-
-func TestValidate_ErrorFixtures(t *testing.T) {
-	// Only test the "any" return type error - other fixtures now pass validation
-	files, fset, err := parseTestFile("../../testdata/errors/no_return_type/no_return_test.go")
-	if err != nil {
-		t.Fatalf("failed to parse test file: %v", err)
-	}
-
-	sigs, _ := extractor.ExtractSignatures(files, fset)
-
-	if len(sigs) == 0 {
-		t.Fatal("no signatures found")
-	}
-
-	err = Validate(sigs)
-	if err == nil {
-		t.Fatal("expected validation to fail for 'any' return type")
-	}
-
-	errStr := err.Error()
-	if !strings.Contains(errStr, "return type inferred as 'any'") {
-		t.Errorf("expected error about 'any' return type, got: %s", errStr)
-	}
-}
-
-// parseTestFile is a helper to parse a single test file
-func parseTestFile(pattern string) ([]*ast.File, *token.FileSet, error) {
-	fset := token.NewFileSet()
-	file, err := parser.ParseFile(fset, pattern, nil, parser.ParseComments)
-	if err != nil {
-		return nil, nil, err
-	}
-	return []*ast.File{file}, fset, nil
 }

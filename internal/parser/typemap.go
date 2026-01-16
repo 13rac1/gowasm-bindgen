@@ -1,48 +1,78 @@
 package parser
 
 import (
-	"go/ast"
+	"fmt"
 	"strings"
 )
 
-// GoTypeToTS converts a Go type expression to TypeScript type string
-func GoTypeToTS(expr ast.Expr) string {
-	switch t := expr.(type) {
-	case *ast.Ident:
-		return identToTS(t.Name)
+// GoTypeToTS converts a GoType to TypeScript type string
+func GoTypeToTS(t GoType) string {
+	switch t.Kind {
+	case KindPrimitive:
+		return primitiveToTS(t.Name)
 
-	case *ast.ArrayType:
-		elemType := GoTypeToTS(t.Elt)
-		return elemType + "[]"
+	case KindSlice, KindArray:
+		if t.Elem != nil {
+			return GoTypeToTS(*t.Elem) + "[]"
+		}
+		return "any[]"
 
-	case *ast.MapType:
-		// Only support map[string]T for now
-		if keyIdent, ok := t.Key.(*ast.Ident); ok && keyIdent.Name == "string" {
-			valueType := GoTypeToTS(t.Value)
-			return "{[key: string]: " + valueType + "}"
+	case KindMap:
+		if t.Key != nil && t.Value != nil {
+			keyType := GoTypeToTS(*t.Key)
+			valueType := GoTypeToTS(*t.Value)
+			if keyType == "string" {
+				return fmt.Sprintf("{[key: string]: %s}", valueType)
+			}
+			return "Record<" + keyType + ", " + valueType + ">"
 		}
 		return "any"
 
-	case *ast.SelectorExpr:
-		// Handle qualified identifiers like js.Value
-		if xIdent, ok := t.X.(*ast.Ident); ok {
-			return xIdent.Name + "." + t.Sel.Name
+	case KindStruct:
+		// Generate inline interface
+		if len(t.Fields) == 0 {
+			return "any"
+		}
+		var b strings.Builder
+		b.WriteString("{")
+		for i, field := range t.Fields {
+			if i > 0 {
+				b.WriteString(", ")
+			}
+			fieldName := field.JSONTag
+			if fieldName == "" {
+				fieldName = field.Name
+			}
+			b.WriteString(fieldName)
+			b.WriteString(": ")
+			b.WriteString(GoTypeToTS(field.Type))
+		}
+		b.WriteString("}")
+		return b.String()
+
+	case KindPointer:
+		if t.Elem != nil {
+			return GoTypeToTS(*t.Elem)
 		}
 		return "any"
+
+	case KindError:
+		return "string"
 
 	default:
 		return "any"
 	}
 }
 
-// identToTS converts a Go identifier to TypeScript type
-func identToTS(name string) string {
+// primitiveToTS converts Go primitive type names to TypeScript
+func primitiveToTS(name string) string {
 	switch name {
 	case "string":
 		return "string"
 	case "int", "int8", "int16", "int32", "int64",
 		"uint", "uint8", "uint16", "uint32", "uint64",
-		"float32", "float64":
+		"float32", "float64",
+		"byte", "rune":
 		return "number"
 	case "bool":
 		return "boolean"
@@ -51,44 +81,248 @@ func identToTS(name string) string {
 	}
 }
 
-// InferTypeFromLiteral attempts to infer Go type from a literal expression
-func InferTypeFromLiteral(expr ast.Expr) string {
-	switch lit := expr.(type) {
-	case *ast.BasicLit:
-		switch lit.Kind.String() {
-		case "INT":
-			return "number"
-		case "FLOAT":
-			return "number"
-		case "STRING":
-			return "string"
-		}
+// GoTypeToJSExtraction generates JavaScript code to extract a value from js.Value
+// argExpr is the expression representing the js.Value argument (e.g., "args[0]")
+func GoTypeToJSExtraction(t GoType, argExpr string) string {
+	switch t.Kind {
+	case KindPrimitive:
+		return primitiveExtraction(t.Name, argExpr)
 
-	case *ast.Ident:
-		if lit.Name == "true" || lit.Name == "false" {
-			return "boolean"
-		}
+	case KindSlice, KindArray:
+		return sliceExtraction(t, argExpr)
 
-	case *ast.CompositeLit:
-		// Array or slice literal
-		if _, ok := lit.Type.(*ast.ArrayType); ok {
-			if len(lit.Elts) > 0 {
-				elemType := InferTypeFromLiteral(lit.Elts[0])
-				return elemType + "[]"
-			}
-			return "any[]"
+	case KindMap:
+		return mapExtraction(t, argExpr)
+
+	case KindStruct:
+		return structExtraction(t, argExpr)
+
+	case KindPointer:
+		if t.Elem != nil {
+			return GoTypeToJSExtraction(*t.Elem, argExpr)
 		}
-		// Map literal
-		if _, ok := lit.Type.(*ast.MapType); ok {
-			return "any"
-		}
+		return argExpr
+
+	default:
+		return argExpr
 	}
-
-	return "any"
 }
 
-// FormatTSType formats a TypeScript type string, handling arrays and objects
-func FormatTSType(goType string) string {
-	// Clean up any extra whitespace
-	return strings.TrimSpace(goType)
+// primitiveExtraction generates extraction code for primitive types
+func primitiveExtraction(typeName, argExpr string) string {
+	switch typeName {
+	case "string":
+		return argExpr + ".String()"
+	case "int":
+		return argExpr + ".Int()"
+	case "int64":
+		return "int64(" + argExpr + ".Float())"
+	case "int32":
+		return "int32(" + argExpr + ".Int())"
+	case "int16":
+		return "int16(" + argExpr + ".Int())"
+	case "int8":
+		return "int8(" + argExpr + ".Int())"
+	case "uint":
+		return "uint(" + argExpr + ".Int())"
+	case "uint64":
+		return "uint64(" + argExpr + ".Float())"
+	case "uint32":
+		return "uint32(" + argExpr + ".Int())"
+	case "uint16":
+		return "uint16(" + argExpr + ".Int())"
+	case "uint8":
+		return "uint8(" + argExpr + ".Int())"
+	case "float64":
+		return argExpr + ".Float()"
+	case "float32":
+		return "float32(" + argExpr + ".Float())"
+	case "bool":
+		return argExpr + ".Bool()"
+	default:
+		return argExpr
+	}
+}
+
+// sliceExtraction generates extraction code for slices
+func sliceExtraction(t GoType, argExpr string) string {
+	if t.Elem == nil {
+		return "nil"
+	}
+
+	elemType := t.Elem
+	var b strings.Builder
+
+	b.WriteString("func() []")
+	b.WriteString(elemType.Name)
+	b.WriteString(" {\n")
+	b.WriteString("\t\tlength := ")
+	b.WriteString(argExpr)
+	b.WriteString(".Length()\n")
+	b.WriteString("\t\tresult := make([]")
+	b.WriteString(elemType.Name)
+	b.WriteString(", length)\n")
+	b.WriteString("\t\tfor i := 0; i < length; i++ {\n")
+	b.WriteString("\t\t\tresult[i] = ")
+	b.WriteString(GoTypeToJSExtraction(*elemType, argExpr+".Index(i)"))
+	b.WriteString("\n\t\t}\n")
+	b.WriteString("\t\treturn result\n")
+	b.WriteString("\t}()")
+
+	return b.String()
+}
+
+// mapExtraction generates extraction code for maps
+func mapExtraction(t GoType, argExpr string) string {
+	if t.Key == nil || t.Value == nil {
+		return "nil"
+	}
+
+	// For now, only support map[string]T
+	if t.Key.Name != "string" {
+		return "nil"
+	}
+
+	var b strings.Builder
+	b.WriteString("func() map[string]")
+	b.WriteString(t.Value.Name)
+	b.WriteString(" {\n")
+	b.WriteString("\t\tresult := make(map[string]")
+	b.WriteString(t.Value.Name)
+	b.WriteString(")\n")
+	b.WriteString("\t\tkeys := js.Global().Get(\"Object\").Call(\"keys\", ")
+	b.WriteString(argExpr)
+	b.WriteString(")\n")
+	b.WriteString("\t\tfor i := 0; i < keys.Length(); i++ {\n")
+	b.WriteString("\t\t\tkey := keys.Index(i).String()\n")
+	b.WriteString("\t\t\tresult[key] = ")
+	b.WriteString(GoTypeToJSExtraction(*t.Value, argExpr+".Get(key)"))
+	b.WriteString("\n\t\t}\n")
+	b.WriteString("\t\treturn result\n")
+	b.WriteString("\t}()")
+
+	return b.String()
+}
+
+// structExtraction generates extraction code for structs
+func structExtraction(t GoType, argExpr string) string {
+	var b strings.Builder
+
+	b.WriteString("func() ")
+	b.WriteString(t.Name)
+	b.WriteString(" {\n")
+	b.WriteString("\t\treturn ")
+	b.WriteString(t.Name)
+	b.WriteString("{\n")
+
+	for _, field := range t.Fields {
+		fieldKey := field.JSONTag
+		if fieldKey == "" {
+			fieldKey = field.Name
+		}
+
+		b.WriteString("\t\t\t")
+		b.WriteString(field.Name)
+		b.WriteString(": ")
+		b.WriteString(GoTypeToJSExtraction(field.Type, argExpr+".Get(\""+fieldKey+"\")"))
+		b.WriteString(",\n")
+	}
+
+	b.WriteString("\t\t}\n")
+	b.WriteString("\t}()")
+
+	return b.String()
+}
+
+// GoTypeToJSReturn generates JavaScript return conversion code
+// valueExpr is the Go expression to convert (e.g., "result")
+func GoTypeToJSReturn(t GoType, valueExpr string) string {
+	switch t.Kind {
+	case KindPrimitive:
+		return primitiveReturn(t.Name, valueExpr)
+
+	case KindSlice, KindArray:
+		return sliceReturn(t, valueExpr)
+
+	case KindMap:
+		return mapReturn(t, valueExpr)
+
+	case KindStruct:
+		return structReturn(t, valueExpr)
+
+	case KindPointer:
+		if t.Elem != nil {
+			return GoTypeToJSReturn(*t.Elem, valueExpr)
+		}
+		return valueExpr
+
+	case KindError:
+		return valueExpr + ".Error()"
+
+	default:
+		return valueExpr
+	}
+}
+
+// primitiveReturn generates return conversion for primitives
+func primitiveReturn(typeName, valueExpr string) string {
+	// Most primitives can be returned directly in Go WASM
+	return valueExpr
+}
+
+// sliceReturn generates return conversion for slices
+func sliceReturn(t GoType, valueExpr string) string {
+	if t.Elem == nil {
+		return "nil"
+	}
+
+	// For primitive element types, can return directly
+	if t.Elem.Kind == KindPrimitive {
+		return valueExpr
+	}
+
+	// For complex types, need to convert each element
+	var b strings.Builder
+	b.WriteString("func() []interface{} {\n")
+	b.WriteString("\t\tresult := make([]interface{}, len(")
+	b.WriteString(valueExpr)
+	b.WriteString("))\n")
+	b.WriteString("\t\tfor i, v := range ")
+	b.WriteString(valueExpr)
+	b.WriteString(" {\n")
+	b.WriteString("\t\t\tresult[i] = ")
+	b.WriteString(GoTypeToJSReturn(*t.Elem, "v"))
+	b.WriteString("\n\t\t}\n")
+	b.WriteString("\t\treturn result\n")
+	b.WriteString("\t}()")
+
+	return b.String()
+}
+
+// mapReturn generates return conversion for maps
+func mapReturn(t GoType, valueExpr string) string {
+	return "map[string]interface{}(" + valueExpr + ")"
+}
+
+// structReturn generates return conversion for structs
+func structReturn(t GoType, valueExpr string) string {
+	var b strings.Builder
+
+	b.WriteString("map[string]interface{}{\n")
+	for _, field := range t.Fields {
+		fieldKey := field.JSONTag
+		if fieldKey == "" {
+			// Use lowercase first letter for JSON key
+			fieldKey = strings.ToLower(field.Name[:1]) + field.Name[1:]
+		}
+
+		b.WriteString("\t\t\"")
+		b.WriteString(fieldKey)
+		b.WriteString("\": ")
+		b.WriteString(GoTypeToJSReturn(field.Type, valueExpr+"."+field.Name))
+		b.WriteString(",\n")
+	}
+	b.WriteString("\t}")
+
+	return b.String()
 }

@@ -1,26 +1,54 @@
 package parser
 
-// WASMCall represents a detected WASM function call in test code
-type WASMCall struct {
-	FuncName   string     // e.g., "merkleHashLeaf"
-	Args       []Argument // Arguments passed via js.ValueOf()
-	ResultVar  string     // Variable name holding result (e.g., "result")
-	TestFunc   string     // Parent test function name
-	SourceFile string     // Source file path
-	Line       int        // Line number of the call
+// TypeKind represents the category of a Go type
+type TypeKind int
+
+const (
+	KindPrimitive TypeKind = iota
+	KindSlice
+	KindArray
+	KindMap
+	KindStruct
+	KindPointer
+	KindError
+	KindUnsupported
+)
+
+// GoType represents a parsed Go type with full structural information
+type GoType struct {
+	Name    string    // Type name (e.g., "string", "User", "[]string")
+	Kind    TypeKind  // Category of the type
+	Elem    *GoType   // Element type for slices/arrays/pointers
+	Key     *GoType   // Key type for maps
+	Value   *GoType   // Value type for maps
+	Fields  []GoField // Fields for struct types
+	IsError bool      // True if this is the error type
 }
 
-// Argument represents a single argument to a WASM function
-type Argument struct {
-	Expression string // The expression passed to js.ValueOf()
-	GoType     string // Resolved Go type (string, int, []string, etc.)
+// GoField represents a single field in a struct
+type GoField struct {
+	Name    string // Field name
+	Type    GoType // Field type
+	JSONTag string // JSON tag value (if present)
 }
 
-// RejectedCall represents a call that looked like a WASM call but didn't match the pattern
-type RejectedCall struct {
-	FuncName   string // Function name if identifiable
-	TestFunc   string // Parent test function name
-	SourceFile string // Source file path
-	Line       int    // Line number of the call
-	Reason     string // Why pattern didn't match
+// GoFunction represents a parsed exported function
+type GoFunction struct {
+	Name    string        // Function name
+	Params  []GoParameter // Function parameters
+	Returns []GoType      // Return types
+	Doc     string        // Documentation comment
+}
+
+// GoParameter represents a single function parameter
+type GoParameter struct {
+	Name string // Parameter name
+	Type GoType // Parameter type
+}
+
+// ParsedFile represents a parsed Go source file
+type ParsedFile struct {
+	Package   string             // Package name
+	Functions []GoFunction       // Exported functions
+	Types     map[string]*GoType // Type definitions in the file
 }

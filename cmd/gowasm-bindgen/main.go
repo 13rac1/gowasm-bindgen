@@ -7,7 +7,6 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/13rac1/gowasm-bindgen/internal/extractor"
 	"github.com/13rac1/gowasm-bindgen/internal/generator"
 	"github.com/13rac1/gowasm-bindgen/internal/parser"
 	"github.com/13rac1/gowasm-bindgen/internal/validator"
@@ -22,74 +21,52 @@ func main() {
 
 func run() error {
 	// Parse flags
-	var tests stringSlice
 	var output string
+	var goOutput string
 	var sync bool
 
-	flag.Var(&tests, "tests", "glob pattern for test files (can be repeated)")
-	flag.StringVar(&output, "output", "", "output client.ts file path")
+	flag.StringVar(&output, "output", "", "output TypeScript file path (e.g., client.ts)")
+	flag.StringVar(&goOutput, "go-output", "", "output Go bindings file path (e.g., bindings_gen.go)")
 	flag.BoolVar(&sync, "sync", false, "generate synchronous API (default: worker-based async)")
 	flag.Parse()
 
 	// Validate flags
-	if len(tests) == 0 {
-		return fmt.Errorf("--tests is required\n\n" +
-			"Usage: gowasm-bindgen --tests 'path/*_test.go' --output client.ts")
+	if flag.NArg() == 0 {
+		return fmt.Errorf("missing source file argument\n\n" +
+			"Usage: gowasm-bindgen <source.go> --output client.ts [--go-output bindings_gen.go] [--sync]")
 	}
 	if output == "" {
 		return fmt.Errorf("--output is required\n\n" +
-			"Usage: gowasm-bindgen --tests 'path/*_test.go' --output client.ts")
+			"Usage: gowasm-bindgen <source.go> --output client.ts [--go-output bindings_gen.go] [--sync]")
 	}
 
-	// Parse test files
-	fmt.Println("Parsing test files...")
-	files, fset, err := parser.ParseTestFiles(tests)
+	sourceFile := flag.Arg(0)
+
+	// Check if source file exists
+	if _, err := os.Stat(sourceFile); err != nil {
+		return fmt.Errorf("source file not found: %s", sourceFile)
+	}
+
+	// Parse source file
+	fmt.Printf("Parsing %s...\n", sourceFile)
+	parsed, err := parser.ParseSourceFile(sourceFile)
 	if err != nil {
-		return fmt.Errorf("parsing test files: %w", err)
+		return fmt.Errorf("parsing source file: %w", err)
 	}
 
-	// Extract package name
-	packageName := parser.GetPackageName(files)
-	fmt.Printf("Package: %s\n", packageName)
-
-	// Extract signatures
-	sigs, rejections := extractor.ExtractSignatures(files, fset)
-
-	// Fail on malformed WASM patterns
-	if len(rejections) > 0 {
-		fmt.Printf("\nerror: found %d malformed WASM call pattern(s):\n", len(rejections))
-		for _, r := range rejections {
-			fmt.Printf("  %s:%d: %s (%s)\n", r.SourceFile, r.Line, r.Reason, r.FuncName)
-		}
-		fmt.Println("\nExpected pattern:")
-		fmt.Println("  result := funcName(js.Null(), []js.Value{js.ValueOf(arg), ...})")
-		return fmt.Errorf("malformed WASM call patterns detected")
+	fmt.Printf("Package: %s\n", parsed.Package)
+	fmt.Printf("Found %d exported function(s):\n", len(parsed.Functions))
+	for _, fn := range parsed.Functions {
+		fmt.Printf("  - %s\n", fn.Name)
 	}
 
-	// Print found signatures
-	fmt.Printf("\nFound %d WASM function(s):\n", len(sigs))
-	for _, sig := range sigs {
-		fmt.Printf("\n  %s (%s:%d)\n", sig.Name, sig.SourceFile, sig.Line)
-		fmt.Println("    Parameters:")
-		for _, p := range sig.Params {
-			fmt.Printf("      - %s: %s\n", p.Name, p.Type)
-		}
-		fmt.Printf("    Return type: %s\n", sig.Returns.Type)
-	}
-	fmt.Println()
-
-	if len(sigs) == 0 {
-		return fmt.Errorf("no WASM function signatures found\n\n" +
-			"Expected pattern:\n" +
-			"  result := funcName(js.Null(), []js.Value{js.ValueOf(arg), ...})\n\n" +
-			"Checklist:\n" +
-			"  - Test functions start with 'Test'\n" +
-			"  - First argument is js.Null()\n" +
-			"  - Second argument is []js.Value{...} literal")
+	if len(parsed.Functions) == 0 {
+		return fmt.Errorf("no exported functions found in %s\n\n"+
+			"Functions must be exported (start with uppercase letter) and have no receiver", sourceFile)
 	}
 
-	// Validate signatures (always runs, fails on issues)
-	if err := validator.Validate(sigs); err != nil {
+	// Validate functions
+	if err := validator.ValidateFunctions(parsed); err != nil {
 		return err
 	}
 
@@ -100,33 +77,47 @@ func run() error {
 		}
 	}
 
-	if sync {
-		// Sync mode: generate class-based client.ts only
-		return generateSyncOutput(sigs, packageName, output)
+	// Generate Go bindings if requested
+	if goOutput != "" {
+		fmt.Printf("\nGenerating Go bindings...\n")
+		bindingsCode := generator.GenerateGoBindings(parsed)
+
+		if err := os.WriteFile(goOutput, []byte(bindingsCode), 0644); err != nil {
+			return fmt.Errorf("writing Go bindings: %w", err)
+		}
+
+		fmt.Printf("Generated %s\n", goOutput)
 	}
 
-	// Default mode (worker): generate client.ts and worker.js
-	return generateWorkerOutput(sigs, packageName, output)
+	// Generate TypeScript client
+	if sync {
+		return generateSyncOutput(parsed, output)
+	}
+
+	return generateWorkerOutput(parsed, output)
 }
 
-func generateSyncOutput(sigs []extractor.FunctionSignature, packageName string, output string) error {
+func generateSyncOutput(parsed *parser.ParsedFile, output string) error {
 	// Generate TypeScript class-based client
-	content := generator.Generate(sigs, packageName)
+	content := generator.Generate(parsed)
 
 	// Write output
 	if err := os.WriteFile(output, []byte(content), 0644); err != nil {
 		return fmt.Errorf("writing output: %w", err)
 	}
 
-	fmt.Printf("Generated %s with %d function(s) (sync mode)\n", output, len(sigs))
+	fmt.Printf("\nGenerated %s with %d function(s) (sync mode)\n", output, len(parsed.Functions))
 	fmt.Println("\nUsage:")
-	fmt.Printf("  import { %s } from './client';\n", toClassName(packageName))
-	fmt.Printf("  const wasm = await %s.init('./example.wasm');\n", toClassName(packageName))
-	fmt.Printf("  const result = wasm.greet('World');\n")
+	fmt.Printf("  import { %s } from './client';\n", toClassName(parsed.Package))
+	fmt.Printf("  const wasm = await %s.init('./example.wasm');\n", toClassName(parsed.Package))
+	if len(parsed.Functions) > 0 {
+		exampleFunc := lowerFirst(parsed.Functions[0].Name)
+		fmt.Printf("  const result = wasm.%s(...);\n", exampleFunc)
+	}
 	return nil
 }
 
-func generateWorkerOutput(sigs []extractor.FunctionSignature, packageName string, output string) error {
+func generateWorkerOutput(parsed *parser.ParsedFile, output string) error {
 	outputDir := filepath.Dir(output)
 
 	// Generate worker.js
@@ -136,17 +127,20 @@ func generateWorkerOutput(sigs []extractor.FunctionSignature, packageName string
 	}
 
 	// Generate client.ts
-	clientContent := generator.GenerateClient(sigs, packageName)
+	clientContent := generator.GenerateClient(parsed)
 	if err := os.WriteFile(output, []byte(clientContent), 0644); err != nil {
 		return fmt.Errorf("writing client: %w", err)
 	}
 
-	fmt.Printf("Generated %s (Web Worker entry point)\n", workerPath)
-	fmt.Printf("Generated %s with %d function(s) (worker mode)\n", output, len(sigs))
+	fmt.Printf("\nGenerated %s (Web Worker entry point)\n", workerPath)
+	fmt.Printf("Generated %s with %d function(s) (worker mode)\n", output, len(parsed.Functions))
 	fmt.Println("\nUsage:")
-	fmt.Printf("  import { %s } from './client';\n", toClassName(packageName))
-	fmt.Printf("  const wasm = await %s.init('./worker.js');\n", toClassName(packageName))
-	fmt.Printf("  const result = await wasm.greet('World');\n")
+	fmt.Printf("  import { %s } from './client';\n", toClassName(parsed.Package))
+	fmt.Printf("  const wasm = await %s.init('./worker.js');\n", toClassName(parsed.Package))
+	if len(parsed.Functions) > 0 {
+		exampleFunc := lowerFirst(parsed.Functions[0].Name)
+		fmt.Printf("  const result = await wasm.%s(...);\n", exampleFunc)
+	}
 	fmt.Printf("  wasm.terminate();\n")
 	return nil
 }
@@ -156,18 +150,13 @@ func toClassName(packageName string) string {
 	if packageName == "" {
 		return "Wasm"
 	}
-	// Import strings for ToUpper is already there
 	return strings.ToUpper(packageName[:1]) + packageName[1:]
 }
 
-// stringSlice allows repeated flag values
-type stringSlice []string
-
-func (s *stringSlice) String() string {
-	return fmt.Sprintf("%v", *s)
-}
-
-func (s *stringSlice) Set(value string) error {
-	*s = append(*s, value)
-	return nil
+// lowerFirst converts first letter to lowercase
+func lowerFirst(s string) string {
+	if s == "" {
+		return ""
+	}
+	return strings.ToLower(s[:1]) + s[1:]
 }

@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/13rac1/gowasm-bindgen/internal/extractor"
+	"github.com/13rac1/gowasm-bindgen/internal/parser"
 )
 
 // ValidationError holds multiple validation errors
@@ -21,13 +21,12 @@ func (e ValidationError) Error() string {
 	return b.String()
 }
 
-// Validate runs all validation rules on extracted signatures, collecting all errors.
-// Returns nil if validation passes, ValidationError with all issues if any fail.
-func Validate(sigs []extractor.FunctionSignature) error {
+// ValidateFunctions runs all validation rules on parsed functions
+func ValidateFunctions(parsed *parser.ParsedFile) error {
 	var errs []error
 
-	for _, sig := range sigs {
-		errs = append(errs, validateSignature(sig)...)
+	for _, fn := range parsed.Functions {
+		errs = append(errs, validateFunction(fn, parsed.Types)...)
 	}
 
 	if len(errs) > 0 {
@@ -36,16 +35,85 @@ func Validate(sigs []extractor.FunctionSignature) error {
 	return nil
 }
 
-// validateSignature checks a single function signature for issues
-func validateSignature(sig extractor.FunctionSignature) []error {
+// validateFunction checks a single function for unsupported features
+func validateFunction(fn parser.GoFunction, types map[string]*parser.GoType) []error {
 	var errs []error
 
-	// Check for "any" return type (type inference failed)
-	if sig.Returns.Type == "any" {
-		errs = append(errs, fmt.Errorf("%s:%d: return type inferred as 'any' for %s\n"+
-			"  hint: add result.Get(\"field\").String() or result.Bool() calls to infer type",
-			sig.SourceFile, sig.Line, sig.Name))
+	// Check parameters for unsupported types
+	for _, param := range fn.Params {
+		if err := validateType(param.Type, fn.Name, "parameter "+param.Name); err != nil {
+			errs = append(errs, err)
+		}
+	}
+
+	// Check return types for unsupported types
+	for i, ret := range fn.Returns {
+		if ret.IsError && i != len(fn.Returns)-1 {
+			errs = append(errs, fmt.Errorf(
+				"function %s: error return type must be last", fn.Name))
+		}
+		if !ret.IsError {
+			if err := validateType(ret, fn.Name, "return type"); err != nil {
+				errs = append(errs, err)
+			}
+		}
 	}
 
 	return errs
+}
+
+// validateType checks if a type is supported for WASM bindings
+func validateType(t parser.GoType, funcName, context string) error {
+	switch t.Kind {
+	case parser.KindPrimitive:
+		// All primitives are supported
+		return nil
+
+	case parser.KindSlice, parser.KindArray:
+		if t.Elem != nil {
+			return validateType(*t.Elem, funcName, context+" element")
+		}
+		return nil
+
+	case parser.KindMap:
+		// Only map[string]T is supported
+		if t.Key == nil || t.Key.Name != "string" {
+			return fmt.Errorf(
+				"function %s: %s uses unsupported map type %s (only map[string]T is supported)",
+				funcName, context, t.Name)
+		}
+		if t.Value != nil {
+			return validateType(*t.Value, funcName, context+" map value")
+		}
+		return nil
+
+	case parser.KindStruct:
+		// Structs are supported, validate fields
+		for _, field := range t.Fields {
+			if err := validateType(field.Type, funcName, context+" field "+field.Name); err != nil {
+				return err
+			}
+		}
+		return nil
+
+	case parser.KindPointer:
+		// Pointers are supported, validate underlying type
+		if t.Elem != nil {
+			return validateType(*t.Elem, funcName, context+" (pointer)")
+		}
+		return nil
+
+	case parser.KindError:
+		// Error is supported
+		return nil
+
+	case parser.KindUnsupported:
+		return fmt.Errorf(
+			"function %s: %s uses unsupported type %q (channels, functions, interfaces, and external types are not supported)",
+			funcName, context, t.Name)
+
+	default:
+		return fmt.Errorf(
+			"function %s: %s uses unknown type kind %v", funcName, context, t.Kind)
+	}
 }
