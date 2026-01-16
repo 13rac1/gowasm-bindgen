@@ -6,8 +6,10 @@ Go WASM modules expose functions on `window` with no type information—TypeScri
 
 - **wasm/main.go** - Go WASM functions (greet, calculate, formatUser, sumNumbers, validateEmail)
 - **wasm/main_test.go** - Table-driven tests that gowasm-bindgen parses to extract types
-- **web/** - TypeScript browser demo using the generated types
+- **web/** - TypeScript browser demo using the generated types (strict mode, zero `any`)
 - **verify_test.ts** - TypeScript test to verify generated types work correctly
+- **types.d.ts** - Generated TypeScript declarations (your function types)
+- **wasm_exec.d.ts** - Generated TypeScript declarations (Go runtime types)
 
 ## Quick Start
 
@@ -36,25 +38,42 @@ make verify
 
 ## Generated Output
 
-After running `make generate`, you'll have `types.d.ts`:
+After running `make generate`, you'll have `types.d.ts` and `wasm_exec.d.ts`:
 
 ```typescript
+// types.d.ts - Named interfaces for object returns
+interface FormatUserResult {
+  displayName: string;
+  status: string;
+}
+interface ValidateEmailResult {
+  valid: boolean;
+  error: string;
+}
+
 declare global {
   interface Window {
     greet(name: string): string;
     calculate(a: number, b: number, op: string): number;
-    formatUser(name: string, age: number, active: boolean): {
-      displayName: string;
-      status: string;
-    };
+    formatUser(name: string, age: number, active: boolean): FormatUserResult;
     sumNumbers(input: string): number;
-    validateEmail(email: string): {
-      valid: boolean;
-      error: string;
-    };
+    validateEmail(email: string): ValidateEmailResult;
   }
+  // Also available via globalThis (Node.js)
+  var greet: (name: string) => string;
+  var calculate: (a: number, b: number, op: string) => number;
+  // ...
 }
 export {};
+```
+
+```typescript
+// wasm_exec.d.ts - Go runtime types
+declare class Go {
+  constructor();
+  importObject: WebAssembly.Imports;
+  run(instance: WebAssembly.Instance): Promise<number>;
+}
 ```
 
 ## Try the Web Demo

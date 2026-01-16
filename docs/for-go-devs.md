@@ -179,7 +179,8 @@ your-project/
 │   └── main_test.go      # Tests (parsed by gowasm-bindgen)
 ├── web/
 │   └── app.ts            # TypeScript frontend
-├── types.d.ts            # Generated output
+├── types.d.ts            # Generated (your function types)
+├── wasm_exec.d.ts        # Generated (Go runtime types)
 ├── example.wasm          # Compiled WASM
 └── wasm_exec.js          # From TinyGo or Go installation
 ```

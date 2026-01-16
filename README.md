@@ -39,13 +39,22 @@ func TestGreet(t *testing.T) {
 }
 ```
 
-Generates:
+Generates `types.d.ts` and `wasm_exec.d.ts`:
 
 ```typescript
+// types.d.ts - your function types
 declare global {
-    interface Window {
-        greet(name: string): string;
-    }
+  interface Window {
+    greet(name: string): string;
+  }
+  var greet: (name: string) => string;
+}
+
+// wasm_exec.d.ts - Go runtime types (also generated)
+declare class Go {
+  constructor();
+  importObject: WebAssembly.Imports;
+  run(instance: WebAssembly.Instance): Promise<number>;
 }
 ```
 
@@ -59,6 +68,7 @@ go install github.com/13rac1/gowasm-bindgen/cmd/gowasm-bindgen@latest
 
 # Generate types from your tests
 gowasm-bindgen --tests "wasm/*_test.go" --output types.d.ts
+# Creates: types.d.ts (your functions) + wasm_exec.d.ts (Go runtime)
 ```
 
 ## Get Started
@@ -85,7 +95,8 @@ make serve  # Open http://localhost:8080/web/
 3. Extract parameter names from struct fields or variable names
 4. Extract parameter types from `js.ValueOf()` calls
 5. Infer return types from result accessors (`.String()`, `.Int()`, `.Bool()`, `.Get()`)
-6. Generate `.d.ts` with proper TypeScript declarations
+6. Generate `types.d.ts` with proper TypeScript declarations
+7. Generate `wasm_exec.d.ts` with Go runtime types
 
 No annotations. No build plugins. Just tests.
 
