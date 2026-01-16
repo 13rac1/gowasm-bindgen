@@ -36,13 +36,13 @@ build-go:
 setup-go:
 	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" .
 
-# Generate TypeScript declarations using gowasm-bindgen
+# Generate TypeScript client with Web Worker (default - async, non-blocking)
 generate:
-	go run ../cmd/gowasm-bindgen/main.go --tests "wasm/*_test.go" --output types.d.ts
+	go run ../cmd/gowasm-bindgen/main.go --tests "wasm/*_test.go" --output client.ts
 
-# Generate Web Worker wrapper for async calls
-generate-worker:
-	go run ../cmd/gowasm-bindgen/main.go --tests "wasm/*_test.go" --output types.d.ts --worker
+# Generate synchronous API (blocks main thread)
+generate-sync:
+	go run ../cmd/gowasm-bindgen/main.go --tests "wasm/*_test.go" --output client.ts --sync
 
 # Type-check TypeScript (strict verification that generated types work)
 typecheck:
@@ -84,5 +84,5 @@ check: format lint
 # Clean generated files
 clean:
 	rm -rf $(DIST)
-	rm -f example.wasm types.d.ts wasm_exec.js wasm_exec.d.ts web/app.js
-	rm -f client.ts worker.js
+	rm -f example.wasm wasm_exec.js web/app.js
+	rm -f client.ts worker.js types.d.ts wasm_exec.d.ts

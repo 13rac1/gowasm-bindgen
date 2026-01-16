@@ -1,3 +1,5 @@
+import { Main } from '../client';
+
 /**
  * Type-safe DOM element accessor.
  *
@@ -69,7 +71,7 @@ function formatError(err: unknown): string {
 }
 
 /**
- * Wraps a function with consistent error handling and display.
+ * Wraps an async function with consistent error handling and display.
  *
  * This pattern keeps error handling DRY (Don't Repeat Yourself).
  * Instead of copy-pasting try/catch blocks, we centralize the logic.
@@ -77,27 +79,31 @@ function formatError(err: unknown): string {
  * @example
  * // ❌ Without this helper - repetitive try/catch everywhere:
  * function runGreet(): void {
- *   try {
- *     // ... logic ...
- *   } catch (err: unknown) {
- *     const el = document.getElementById("greetResult");
- *     if (el) el.textContent = `Error: ${formatError(err)}`;
- *   }
+ *   void (async () => {
+ *     try {
+ *       const result = await wasm.greet(name);
+ *       // ... logic ...
+ *     } catch (err: unknown) {
+ *       const el = document.getElementById("greetResult");
+ *       if (el) el.textContent = `Error: ${formatError(err)}`;
+ *     }
+ *   })();
  * }
  *
  * // ✅ With this helper - clean and consistent:
  * function runGreet(): void {
- *   withErrorHandling("greetResult", () => {
+ *   void withErrorHandlingAsync("greetResult", async () => {
+ *     const result = await wasm.greet(name);
  *     // ... logic ...
  *   });
  * }
  *
  * @param resultElementId - ID of element to display errors in
- * @param fn - Function to execute with error handling
+ * @param fn - Async function to execute with error handling
  */
-function withErrorHandling(resultElementId: string, fn: () => void): void {
+async function withErrorHandlingAsync(resultElementId: string, fn: () => Promise<void>): Promise<void> {
   try {
-    fn();
+    await fn();
   } catch (err: unknown) {
     const resultElement = getOptionalElement(resultElementId, HTMLElement);
     if (resultElement) {
@@ -108,32 +114,21 @@ function withErrorHandling(resultElementId: string, fn: () => void): void {
 }
 
 /**
- * Initialize the Go WASM module.
+ * Initialize the Go WASM module using Web Worker.
  *
- * This demonstrates the async/await pattern for WASM loading:
- * 1. Create Go runtime instance
- * 2. Fetch and compile WASM (async)
- * 3. Start the Go runtime (fire-and-forget)
+ * This demonstrates the class-based API pattern:
+ * 1. Import the generated Main class from client.ts (at top of file)
+ * 2. Initialize with the Web Worker URL
+ * 3. Use async methods to call Go functions
  * 4. Set up UI after WASM is ready
  */
+
+let wasm: Main;
+
 async function initWasm(): Promise<void> {
   try {
-    const go = new Go();
-
-    // WebAssembly.instantiateStreaming is a browser optimization that
-    // compiles the WASM while it's still downloading. This is faster
-    // than fetch().then(instantiate) for large WASM files.
-    // In dist/, all files are in the same directory
-    const result = await WebAssembly.instantiateStreaming(
-      fetch("example.wasm"),
-      go.importObject
-    );
-
-    // Fire-and-forget: go.run() returns a Promise that never resolves
-    // because the Go program runs indefinitely. The 'void' operator
-    // explicitly marks this as intentional (satisfies ESLint's
-    // @typescript-eslint/no-floating-promises rule).
-    void go.run(result.instance);
+    // Initialize the WASM module in a Web Worker (non-blocking)
+    wasm = await Main.init('worker.js');
 
     // Update UI to show WASM is ready
     const statusElement = getElement("status", HTMLElement);
@@ -163,21 +158,21 @@ async function initWasm(): Promise<void> {
 void initWasm();
 
 // ============================================================================
-// Event Handlers - Each uses withErrorHandling for consistent error display
+// Event Handlers - Each uses async/await with the wasm instance
 // ============================================================================
 
 function runGreet(): void {
-  withErrorHandling("greetResult", () => {
+  void withErrorHandlingAsync("greetResult", async () => {
     const nameInput = getElement("greetName", HTMLInputElement);
     const resultElement = getElement("greetResult", HTMLElement);
 
-    const result = window.greet(nameInput.value);
+    const result = await wasm.greet(nameInput.value);
     resultElement.textContent = JSON.stringify(result);
   });
 }
 
 function runCalculate(): void {
-  withErrorHandling("calcResult", () => {
+  void withErrorHandlingAsync("calcResult", async () => {
     const aInput = getElement("calcA", HTMLInputElement);
     const bInput = getElement("calcB", HTMLInputElement);
     const opSelect = getElement("calcOp", HTMLSelectElement);
@@ -189,13 +184,13 @@ function runCalculate(): void {
       throw new Error("Please enter valid numbers");
     }
 
-    const result = window.calculate(a, b, opSelect.value);
+    const result = await wasm.calculate(a, b, opSelect.value);
     resultElement.textContent = JSON.stringify(result);
   });
 }
 
 function runFormatUser(): void {
-  withErrorHandling("formatResult", () => {
+  void withErrorHandlingAsync("formatResult", async () => {
     const nameInput = getElement("userName", HTMLInputElement);
     const ageInput = getElement("userAge", HTMLInputElement);
     const activeInput = getElement("userActive", HTMLInputElement);
@@ -206,27 +201,27 @@ function runFormatUser(): void {
       throw new Error("Please enter a valid age");
     }
 
-    const result = window.formatUser(nameInput.value, age, activeInput.checked);
+    const result = await wasm.formatUser(nameInput.value, age, activeInput.checked);
     resultElement.textContent = JSON.stringify(result, null, 2);
   });
 }
 
 function runSumNumbers(): void {
-  withErrorHandling("sumResult", () => {
+  void withErrorHandlingAsync("sumResult", async () => {
     const numbersInput = getElement("numbersInput", HTMLInputElement);
     const resultElement = getElement("sumResult", HTMLElement);
 
-    const result = window.sumNumbers(numbersInput.value);
+    const result = await wasm.sumNumbers(numbersInput.value);
     resultElement.textContent = JSON.stringify(result);
   });
 }
 
 function runValidateEmail(): void {
-  withErrorHandling("emailResult", () => {
+  void withErrorHandlingAsync("emailResult", async () => {
     const emailInput = getElement("emailInput", HTMLInputElement);
     const resultElement = getElement("emailResult", HTMLElement);
 
-    const result = window.validateEmail(emailInput.value);
+    const result = await wasm.validateEmail(emailInput.value);
     resultElement.textContent = JSON.stringify(result, null, 2);
   });
 }

@@ -4,25 +4,27 @@ gowasm-bindgen generates TypeScript declarations from Go tests. This document li
 
 ## Current Limitations
 
-### Synchronous by Default
+### Worker Mode by Default
 
-Go WASM functions block the main thread. Long-running operations freeze the UI.
+Go WASM runs in a Web Worker by default, providing non-blocking async calls:
 
 ```typescript
-// Default mode: blocks until complete
-const result = window.heavyComputation(data);  // UI frozen!
+// Default mode: non-blocking
+import { Wasm } from './client';
+const wasm = await Wasm.init('./worker.js');
+const result = await wasm.heavyComputation(data);  // UI stays responsive!
 ```
 
-**Solution:** Use `--worker` flag to generate a Web Worker wrapper with Promise-based API:
+**Want sync?** Use `--sync` flag to run on the main thread (blocks until complete):
 ```bash
-gowasm-bindgen --tests "wasm/*_test.go" --output types.d.ts --worker
+gowasm-bindgen --tests "wasm/*_test.go" --output client.ts --sync
 ```
 
 ```typescript
-// Worker mode: non-blocking
-import { init, heavyComputation } from './client';
-await init('./worker.js');
-const result = await heavyComputation(data);  // UI stays responsive!
+// Sync mode: blocks main thread
+import { Wasm } from './client';
+const wasm = await Wasm.init('./example.wasm');
+const result = wasm.heavyComputation(data);  // UI frozen!
 ```
 
 ### No Typed Arrays
@@ -31,10 +33,10 @@ Array parameters require string serialization:
 
 ```typescript
 // Current: manual serialization
-const sum = window.sumNumbers("1,2,3,4,5");
+const sum = await wasm.sumNumbers("1,2,3,4,5");
 
 // Ideal: native arrays
-const sum = window.sumNumbers([1, 2, 3, 4, 5]);
+const sum = await wasm.sumNumbers([1, 2, 3, 4, 5]);
 ```
 
 Go supports typed arrays via `js.CopyBytesToGo()`, but gowasm-bindgen doesn't detect this pattern yet.
@@ -45,7 +47,7 @@ Can't pass JavaScript functions to Go:
 
 ```typescript
 // Not supported
-window.forEach(items, (item) => console.log(item));
+await wasm.forEach(items, (item) => console.log(item));
 ```
 
 Go does support callbacks via `js.FuncOf()`, but detection and type generation is complex.
@@ -56,7 +58,7 @@ Errors are returned as values, not thrown:
 
 ```typescript
 // Current: check result manually
-const result = window.validateEmail("bad");
+const result = await wasm.validateEmail("bad");
 if (!result.valid) {
   console.error(result.error);
 }
@@ -69,21 +71,22 @@ try {
 }
 ```
 
-### No Class/Method Support
+### Class-Based but Not OOP
 
-Go WASM exposes functions on `window`, not classes:
+Functions are methods on a class instance, but not true object-oriented:
 
 ```typescript
-// Current: standalone functions
-const user = window.createUser("Alice", 30);
-const name = window.getUserName(user);
+// Current: methods on a WASM instance class
+const wasm = await Wasm.init('./worker.js');
+const user = await wasm.createUser("Alice", 30);
+const name = await wasm.getUserName(user);
 
 // Rust wasm-bindgen: exported structs become classes
 const user = new User("Alice", 30);
 const name = user.getName();
 ```
 
-This is a fundamental difference in Go vs Rust WASM design.
+This is a fundamental difference in Go vs Rust WASM design. The class pattern in gowasm-bindgen is for API organization, not OOP.
 
 ### No JS→Go Imports
 
@@ -134,10 +137,10 @@ Rust has `wasm-pack` for a complete workflow. gowasm-bindgen is just the type ge
 | Direction | Bidirectional (Rust↔JS) | Export only (Go→JS) |
 | TypeScript generation | ✅ | ✅ |
 | Primitives | ✅ | ✅ |
-| Objects | ✅ Classes with methods | ✅ Plain objects |
+| Objects | ✅ Classes with methods | ✅ Class with methods (default) |
 | Typed arrays | ✅ | ❌ |
 | Closures/callbacks | ✅ | ❌ |
-| Promises/async | ✅ | ✅ (`--worker`) |
+| Promises/async | ✅ | ✅ (default) |
 | Error handling | ✅ Result<T,E> | ❌ |
 | JS imports | ✅ | ❌ |
 | Build toolchain | ✅ wasm-pack | ❌ |
@@ -154,7 +157,8 @@ Rust has `wasm-pack` for a complete workflow. gowasm-bindgen is just the type ge
 
 Potential improvements (contributions welcome):
 
-- [x] Web Worker wrapper generation for async/Promise API (`--worker` flag)
+- [x] Web Worker wrapper generation for async/Promise API (now default)
+- [x] Class-based API instead of window globals
 - [ ] Typed array detection and generation
 - [ ] Error/Result pattern detection
 - [ ] `wasm-pack`-style CLI for complete workflow

@@ -373,3 +373,14 @@ func formatExprFallback(expr ast.Expr) string {
 		return "..."
 	}
 }
+
+// GetPackageName extracts the Go package name from parsed AST files.
+// Returns the package name with "_test" suffix stripped.
+// If no files provided, returns "wasm" as default.
+func GetPackageName(files []*ast.File) string {
+	if len(files) == 0 {
+		return "wasm"
+	}
+	name := files[0].Name.Name
+	return strings.TrimSuffix(name, "_test")
+}

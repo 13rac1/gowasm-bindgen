@@ -1,6 +1,6 @@
 # gowasm-bindgen for Go Developers
 
-Full-stack Go with type-safe JavaScript interop. Write Go, compile to WASM, get TypeScript declarations automatically.
+Full-stack Go with type-safe JavaScript interop. Write Go, compile to WASM, get TypeScript class APIs automatically.
 
 ## Why This Exists
 
@@ -12,10 +12,11 @@ func myFunc(this js.Value, args []js.Value) interface{}
 
 The `args` parameter is `[]js.Value` (untyped), and the return is `interface{}` (untyped). TypeScript sees these functions as `any`.
 
-**gowasm-bindgen extracts types from your tests** to generate accurate `.d.ts` files:
+**gowasm-bindgen extracts types from your tests** to generate a clean TypeScript class API:
 - `js.ValueOf(stringVar)` reveals the parameter is a string
 - `result.Int()` reveals the return type is a number
 - Table struct fields like `username string` provide parameter names
+- Your package name becomes the class name (e.g., `package wasm` → `Wasm` class)
 
 If you have tests, your types are correct by definition.
 
@@ -179,6 +180,30 @@ Expected pattern:
 - **Complex nested types** (deeply nested objects, unions) may need manual refinement
 - **No runtime validation** of generated types against actual WASM behavior
 
+## Generated API
+
+gowasm-bindgen generates a TypeScript class with your package name:
+
+```typescript
+// Generated client.ts from package wasm
+export class Wasm {
+  static async init(workerUrl: string): Promise<Wasm>;
+  greet(name: string): Promise<string>;
+  calculate(a: number, b: number, op: string): Promise<number>;
+  terminate(): void;
+}
+```
+
+Your TypeScript users import and use it:
+
+```typescript
+import { Wasm } from './client';
+
+const wasm = await Wasm.init('./worker.js');
+const result = await wasm.greet('World');
+wasm.terminate();
+```
+
 ## Project Structure
 
 ```
@@ -188,10 +213,9 @@ your-project/
 │   └── main_test.go      # Tests (parsed by gowasm-bindgen)
 ├── web/
 │   └── app.ts            # TypeScript frontend
-├── types.d.ts            # Generated (your function types)
-├── wasm_exec.d.ts        # Generated (Go runtime types)
-├── example.wasm          # Compiled WASM
-└── wasm_exec.js          # From TinyGo or Go installation
+├── client.ts             # Generated (TypeScript class API)
+├── worker.js             # Generated (Web Worker wrapper)
+└── example.wasm          # Compiled WASM
 ```
 
 ## Complete Example

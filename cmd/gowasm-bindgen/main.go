@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/13rac1/gowasm-bindgen/internal/extractor"
 	"github.com/13rac1/gowasm-bindgen/internal/generator"
 	"github.com/13rac1/gowasm-bindgen/internal/parser"
-	"github.com/13rac1/gowasm-bindgen/internal/runtime"
 	"github.com/13rac1/gowasm-bindgen/internal/validator"
 )
 
@@ -24,21 +24,21 @@ func run() error {
 	// Parse flags
 	var tests stringSlice
 	var output string
-	var worker bool
+	var sync bool
 
 	flag.Var(&tests, "tests", "glob pattern for test files (can be repeated)")
-	flag.StringVar(&output, "output", "", "output .d.ts file path")
-	flag.BoolVar(&worker, "worker", false, "generate Web Worker wrapper for async calls")
+	flag.StringVar(&output, "output", "", "output client.ts file path")
+	flag.BoolVar(&sync, "sync", false, "generate synchronous API (default: worker-based async)")
 	flag.Parse()
 
 	// Validate flags
 	if len(tests) == 0 {
 		return fmt.Errorf("--tests is required\n\n" +
-			"Usage: gowasm-bindgen --tests 'path/*_test.go' --output types.d.ts")
+			"Usage: gowasm-bindgen --tests 'path/*_test.go' --output client.ts")
 	}
 	if output == "" {
 		return fmt.Errorf("--output is required\n\n" +
-			"Usage: gowasm-bindgen --tests 'path/*_test.go' --output types.d.ts")
+			"Usage: gowasm-bindgen --tests 'path/*_test.go' --output client.ts")
 	}
 
 	// Parse test files
@@ -47,6 +47,10 @@ func run() error {
 	if err != nil {
 		return fmt.Errorf("parsing test files: %w", err)
 	}
+
+	// Extract package name
+	packageName := parser.GetPackageName(files)
+	fmt.Printf("Package: %s\n", packageName)
 
 	// Extract signatures
 	sigs, rejections := extractor.ExtractSignatures(files, fset)
@@ -96,36 +100,33 @@ func run() error {
 		}
 	}
 
-	if worker {
-		// Worker mode: generate client.ts and worker.js
-		return generateWorkerOutput(sigs, output)
+	if sync {
+		// Sync mode: generate class-based client.ts only
+		return generateSyncOutput(sigs, packageName, output)
 	}
 
-	// Default mode: generate types.d.ts and wasm_exec.d.ts
-	return generateDefaultOutput(sigs, output)
+	// Default mode (worker): generate client.ts and worker.js
+	return generateWorkerOutput(sigs, packageName, output)
 }
 
-func generateDefaultOutput(sigs []extractor.FunctionSignature, output string) error {
-	// Generate TypeScript declarations
-	dts := generator.Generate(sigs)
+func generateSyncOutput(sigs []extractor.FunctionSignature, packageName string, output string) error {
+	// Generate TypeScript class-based client
+	content := generator.Generate(sigs, packageName)
 
 	// Write output
-	if err := os.WriteFile(output, []byte(dts), 0644); err != nil {
+	if err := os.WriteFile(output, []byte(content), 0644); err != nil {
 		return fmt.Errorf("writing output: %w", err)
 	}
 
-	// Write wasm_exec.d.ts alongside output
-	runtimePath := filepath.Join(filepath.Dir(output), "wasm_exec.d.ts")
-	if err := os.WriteFile(runtimePath, []byte(runtime.WasmExecDTS), 0644); err != nil {
-		return fmt.Errorf("writing runtime types: %w", err)
-	}
-
-	fmt.Printf("Generated %s with %d function(s)\n", output, len(sigs))
-	fmt.Printf("Generated %s (Go WASM runtime types)\n", runtimePath)
+	fmt.Printf("Generated %s with %d function(s) (sync mode)\n", output, len(sigs))
+	fmt.Println("\nUsage:")
+	fmt.Printf("  import { %s } from './client';\n", toClassName(packageName))
+	fmt.Printf("  const wasm = await %s.init('./example.wasm');\n", toClassName(packageName))
+	fmt.Printf("  const result = wasm.greet('World');\n")
 	return nil
 }
 
-func generateWorkerOutput(sigs []extractor.FunctionSignature, output string) error {
+func generateWorkerOutput(sigs []extractor.FunctionSignature, packageName string, output string) error {
 	outputDir := filepath.Dir(output)
 
 	// Generate worker.js
@@ -135,19 +136,28 @@ func generateWorkerOutput(sigs []extractor.FunctionSignature, output string) err
 	}
 
 	// Generate client.ts
-	clientPath := filepath.Join(outputDir, "client.ts")
-	clientContent := generator.GenerateClient(sigs)
-	if err := os.WriteFile(clientPath, []byte(clientContent), 0644); err != nil {
+	clientContent := generator.GenerateClient(sigs, packageName)
+	if err := os.WriteFile(output, []byte(clientContent), 0644); err != nil {
 		return fmt.Errorf("writing client: %w", err)
 	}
 
 	fmt.Printf("Generated %s (Web Worker entry point)\n", workerPath)
-	fmt.Printf("Generated %s with %d function(s)\n", clientPath, len(sigs))
+	fmt.Printf("Generated %s with %d function(s) (worker mode)\n", output, len(sigs))
 	fmt.Println("\nUsage:")
-	fmt.Println("  import { init, greet } from './client';")
-	fmt.Println("  await init('./worker.js');")
-	fmt.Println("  const result = await greet('World');")
+	fmt.Printf("  import { %s } from './client';\n", toClassName(packageName))
+	fmt.Printf("  const wasm = await %s.init('./worker.js');\n", toClassName(packageName))
+	fmt.Printf("  const result = await wasm.greet('World');\n")
+	fmt.Printf("  wasm.terminate();\n")
 	return nil
+}
+
+// toClassName converts a Go package name to a TypeScript class name.
+func toClassName(packageName string) string {
+	if packageName == "" {
+		return "Wasm"
+	}
+	// Import strings for ToUpper is already there
+	return strings.ToUpper(packageName[:1]) + packageName[1:]
 }
 
 // stringSlice allows repeated flag values
