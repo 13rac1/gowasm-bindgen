@@ -79,11 +79,16 @@ declare class Go {
 ## Try the Web Demo
 
 ```bash
-# Start a local server
+# Build and start local server
 make serve
 
-# Open http://localhost:8080/web/ in your browser
+# Open http://localhost:8080 in your browser
 ```
+
+The `make serve` command:
+1. Builds everything (WASM, TypeScript, types)
+2. Copies all artifacts to `dist/`
+3. Starts a local server using `npx serve`
 
 ## How It Works
 
@@ -132,5 +137,4 @@ make serve
 
 - [TinyGo](https://tinygo.org/getting-started/install/) (recommended for small WASM binaries)
 - Go 1.21+ (alternative, produces larger binaries)
-- Node.js 18+ (for type verification via tsx)
-- Python 3 (for `make serve`)
+- Node.js 18+ (for TypeScript tooling and local server)

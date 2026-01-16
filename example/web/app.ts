@@ -123,8 +123,9 @@ async function initWasm(): Promise<void> {
     // WebAssembly.instantiateStreaming is a browser optimization that
     // compiles the WASM while it's still downloading. This is faster
     // than fetch().then(instantiate) for large WASM files.
+    // In dist/, all files are in the same directory
     const result = await WebAssembly.instantiateStreaming(
-      fetch("../example.wasm"),
+      fetch("example.wasm"),
       go.importObject
     );
 

@@ -1,7 +1,10 @@
-.PHONY: all build generate typecheck verify serve clean setup format lint check web
+.PHONY: all build generate typecheck verify serve clean setup format lint check web dist
+
+# Build directory for all artifacts
+DIST := dist
 
 # Build WASM, generate types, and verify
-all: setup build generate typecheck verify web
+all: setup build generate typecheck verify dist
 
 # Copy wasm_exec.js from TinyGo installation
 setup:
@@ -46,15 +49,22 @@ typecheck:
 verify:
 	npx tsx --test verify_test.ts
 
-# Compile TypeScript web demo (uses generated types.d.ts)
-web: generate
-	npx esbuild web/app.ts --bundle --outfile=web/app.js
+# Build dist directory with runtime artifacts for serving
+dist: setup build generate
+	@mkdir -p $(DIST)
+	cp example.wasm $(DIST)/
+	cp wasm_exec.js $(DIST)/
+	cp web/index.html $(DIST)/
+	npx esbuild web/app.ts --bundle --outfile=$(DIST)/app.js
 
 # Start a local web server to test the demo
 serve: all
 	@echo "Starting server at http://localhost:8080"
-	@echo "Open http://localhost:8080/web/ in your browser"
-	python3 -m http.server 8080
+	npx serve $(DIST) -l 8080
+
+# Compile TypeScript web demo (uses generated types.d.ts) - legacy target
+web: generate
+	npx esbuild web/app.ts --bundle --outfile=web/app.js
 
 # Format code
 format:
@@ -69,4 +79,5 @@ check: format lint
 
 # Clean generated files
 clean:
-	rm -f example.wasm types.d.ts wasm_exec.js web/app.js
+	rm -rf $(DIST)
+	rm -f example.wasm types.d.ts wasm_exec.js wasm_exec.d.ts web/app.js

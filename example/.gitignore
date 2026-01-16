@@ -1,5 +1,9 @@
-# Generated files
+# Build output
+dist/
+
+# Generated files (kept in working dir for verification)
 example.wasm
 types.d.ts
 wasm_exec.js
+wasm_exec.d.ts
 web/app.js
