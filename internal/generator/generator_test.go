@@ -47,7 +47,9 @@ func TestGenerate(t *testing.T) {
 				"export class Wasm",
 				"static async init(wasmUrl: string): Promise<Wasm>",
 				"hashData(data: string): string",
-				"return (globalThis as any).hashData(data);",
+				"const result = (globalThis as any).hashData(data);",
+				"throw new Error((result as { __error: string }).__error);",
+				"return result;",
 			},
 		},
 		{
@@ -166,7 +168,9 @@ func TestGenerateClassMethod(t *testing.T) {
 			},
 			want: []string{
 				"hashData(data: string): string {",
-				"return (globalThis as any).hashData(data);",
+				"const result = (globalThis as any).hashData(data);",
+				"'__error' in result",
+				"return result;",
 			},
 		},
 		{
@@ -178,7 +182,8 @@ func TestGenerateClassMethod(t *testing.T) {
 			},
 			want: []string{
 				"getCurrentTime(): number {",
-				"return (globalThis as any).getCurrentTime();",
+				"const result = (globalThis as any).getCurrentTime();",
+				"return result;",
 			},
 		},
 		{
@@ -194,6 +199,41 @@ func TestGenerateClassMethod(t *testing.T) {
 				"Process data and return result",
 				"*/",
 				"process(data: string): string {",
+			},
+		},
+		{
+			name: "function with error return",
+			fn: parser.GoFunction{
+				Name: "Divide",
+				Params: []parser.GoParameter{
+					{Name: "a", Type: parser.GoType{Name: "int", Kind: parser.KindPrimitive}},
+					{Name: "b", Type: parser.GoType{Name: "int", Kind: parser.KindPrimitive}},
+				},
+				Returns: []parser.GoType{
+					{Name: "int", Kind: parser.KindPrimitive},
+					{Name: "error", Kind: parser.KindPrimitive, IsError: true},
+				},
+			},
+			want: []string{
+				"divide(a: number, b: number): number {",
+				"const result = (globalThis as any).divide(a, b);",
+				"'__error' in result",
+				"throw new Error",
+				"return result;",
+			},
+		},
+		{
+			name: "function with only error return",
+			fn: parser.GoFunction{
+				Name:   "Close",
+				Params: []parser.GoParameter{},
+				Returns: []parser.GoType{
+					{Name: "error", Kind: parser.KindPrimitive, IsError: true},
+				},
+			},
+			want: []string{
+				"close(): void {",
+				"const result = (globalThis as any).close();",
 			},
 		},
 	}

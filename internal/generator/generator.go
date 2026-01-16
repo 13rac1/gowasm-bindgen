@@ -1,3 +1,11 @@
+// Package generator creates TypeScript client code for Go WASM functions.
+//
+// Two modes are supported:
+//   - Sync mode: class that calls globalThis functions directly
+//   - Worker mode: class that communicates via Web Worker
+//
+// Go functions returning (T, error) automatically throw in TypeScript
+// using the __error field convention defined by ErrorFieldName.
 package generator
 
 import (
@@ -6,6 +14,12 @@ import (
 
 	"github.com/13rac1/gowasm-bindgen/internal/parser"
 )
+
+// tsErrorCheck is the TypeScript code that checks for Go errors passed through WASM.
+const tsErrorCheck = `    if (result && typeof result === 'object' && '` + ErrorFieldName + `' in result) {
+      throw new Error((result as { ` + ErrorFieldName + `: string }).` + ErrorFieldName + `);
+    }
+`
 
 // Generate creates TypeScript class-based client for sync mode.
 // This generates a class that wraps globalThis function calls.
@@ -84,22 +98,7 @@ func GenerateClassMethod(fn parser.GoFunction) string {
 	}
 
 	params := GenerateFunctionParams(fn.Params)
-
-	// Determine return type
-	var returnType string
-	hasError := len(fn.Returns) > 0 && fn.Returns[len(fn.Returns)-1].IsError
-	hasNonErrorReturn := len(fn.Returns) > 0 && (!hasError || len(fn.Returns) > 1)
-
-	if hasNonErrorReturn {
-		returnType = parser.GoTypeToTS(fn.Returns[0])
-		// For struct returns, use interface name
-		if fn.Returns[0].Kind == parser.KindStruct {
-			returnType = InterfaceName(fn.Name)
-		}
-	} else {
-		returnType = "void"
-	}
-
+	returnType := determineReturnType(fn)
 	funcName := lowerFirst(fn.Name)
 
 	b.WriteString("  ")
@@ -109,18 +108,22 @@ func GenerateClassMethod(fn parser.GoFunction) string {
 	b.WriteString("): ")
 	b.WriteString(returnType)
 	b.WriteString(" {\n")
-	b.WriteString("    return (globalThis as any).")
-	b.WriteString(funcName)
-	b.WriteString("(")
 
-	// Pass through parameters
+	// Build argument list
 	argNames := make([]string, len(fn.Params))
 	for i, p := range fn.Params {
 		argNames[i] = p.Name
 	}
-	b.WriteString(strings.Join(argNames, ", "))
+	argsStr := strings.Join(argNames, ", ")
 
+	// Generate function body with error checking
+	b.WriteString("    const result = (globalThis as any).")
+	b.WriteString(funcName)
+	b.WriteString("(")
+	b.WriteString(argsStr)
 	b.WriteString(");\n")
+	b.WriteString(tsErrorCheck)
+	b.WriteString("    return result;\n")
 	b.WriteString("  }\n")
 
 	return b.String()
@@ -200,4 +203,20 @@ func toClassName(packageName string) string {
 		return "Wasm"
 	}
 	return strings.ToUpper(packageName[:1]) + packageName[1:]
+}
+
+// determineReturnType returns the TypeScript return type for a Go function.
+// For functions returning (T, error), returns T. For functions returning only error, returns "void".
+func determineReturnType(fn parser.GoFunction) string {
+	if len(fn.Returns) == 0 {
+		return "void"
+	}
+	lastIsError := fn.Returns[len(fn.Returns)-1].IsError
+	if lastIsError && len(fn.Returns) == 1 {
+		return "void"
+	}
+	if fn.Returns[0].Kind == parser.KindStruct {
+		return InterfaceName(fn.Name)
+	}
+	return parser.GoTypeToTS(fn.Returns[0])
 }

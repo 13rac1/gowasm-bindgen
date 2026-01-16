@@ -104,7 +104,19 @@ func GenerateClient(parsed *parser.ParsedFile) string {
 	b.WriteString("        const handler = instance.pending.get(id);\n")
 	b.WriteString("        if (handler) {\n")
 	b.WriteString("          instance.pending.delete(id);\n")
-	b.WriteString("          error ? handler.reject(new Error(error)) : handler.resolve(result);\n")
+	b.WriteString("          if (error) {\n")
+	b.WriteString("            handler.reject(new Error(error));\n")
+	b.WriteString("          } else if (result && typeof result === 'object' && '")
+	b.WriteString(ErrorFieldName)
+	b.WriteString("' in result) {\n")
+	b.WriteString("            handler.reject(new Error((result as { ")
+	b.WriteString(ErrorFieldName)
+	b.WriteString(": string }).")
+	b.WriteString(ErrorFieldName)
+	b.WriteString("));\n")
+	b.WriteString("          } else {\n")
+	b.WriteString("            handler.resolve(result);\n")
+	b.WriteString("          }\n")
 	b.WriteString("        }\n")
 	b.WriteString("      };\n")
 	b.WriteString("      worker.onerror = (e) => reject(new Error(e.message || 'Worker failed to load'));\n")
@@ -154,22 +166,7 @@ func GenerateWorkerClassMethod(fn parser.GoFunction) string {
 	}
 
 	params := GenerateFunctionParams(fn.Params)
-
-	// Determine return type
-	var returnType string
-	hasError := len(fn.Returns) > 0 && fn.Returns[len(fn.Returns)-1].IsError
-	hasNonErrorReturn := len(fn.Returns) > 0 && (!hasError || len(fn.Returns) > 1)
-
-	if hasNonErrorReturn {
-		returnType = parser.GoTypeToTS(fn.Returns[0])
-		// For struct returns, use interface name
-		if fn.Returns[0].Kind == parser.KindStruct {
-			returnType = InterfaceName(fn.Name)
-		}
-	} else {
-		returnType = "void"
-	}
-
+	returnType := determineReturnType(fn)
 	funcName := lowerFirst(fn.Name)
 
 	b.WriteString("  ")

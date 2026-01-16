@@ -164,3 +164,38 @@ func TestValidateEmail(t *testing.T) {
 		})
 	}
 }
+
+func TestDivide(t *testing.T) {
+	tests := []struct {
+		name    string
+		a       int
+		b       int
+		want    int
+		wantErr string
+	}{
+		{name: "normal", a: 10, b: 2, want: 5, wantErr: ""},
+		{name: "division_by_zero", a: 10, b: 0, want: 0, wantErr: "division by zero"},
+		{name: "negative", a: -10, b: 2, want: -5, wantErr: ""},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got, err := Divide(tt.a, tt.b)
+			if tt.wantErr != "" {
+				if err == nil {
+					t.Fatalf("Divide(%d, %d) expected error %q, got nil", tt.a, tt.b, tt.wantErr)
+				}
+				if err.Error() != tt.wantErr {
+					t.Errorf("Divide(%d, %d) error = %q, want %q", tt.a, tt.b, err.Error(), tt.wantErr)
+				}
+				return
+			}
+			if err != nil {
+				t.Fatalf("Divide(%d, %d) unexpected error: %v", tt.a, tt.b, err)
+			}
+			if got != tt.want {
+				t.Errorf("Divide(%d, %d) = %d, want %d", tt.a, tt.b, got, tt.want)
+			}
+		})
+	}
+}

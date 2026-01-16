@@ -56,7 +56,7 @@ void test("Generated types compile and match WASM signatures", async () => {
   // Verify Main class type structure
   // This is a compile-time check - if these type annotations compile,
   // the generated class has the correct method signatures
-  const mockWasm: Pick<Main, 'greet' | 'calculate' | 'formatUser' | 'sumNumbers' | 'validateEmail' | 'terminate'> = {
+  const mockWasm: Pick<Main, 'greet' | 'calculate' | 'formatUser' | 'sumNumbers' | 'validateEmail' | 'divide' | 'terminate'> = {
     greet: async (name: string): Promise<string> => `Hello, ${name}!`,
     calculate: async (a: number, b: number, op: string): Promise<number> => {
       switch (op) {
@@ -79,6 +79,12 @@ void test("Generated types compile and match WASM signatures", async () => {
       valid: email.includes('@'),
       error: email.includes('@') ? '' : 'missing @ symbol'
     }),
+    divide: async (a: number, b: number): Promise<number> => {
+      if (b === 0) {
+        throw new Error("division by zero");
+      }
+      return a / b;
+    },
     terminate: (): void => {}
   };
 
@@ -126,4 +132,14 @@ void test("Generated types compile and match WASM signatures", async () => {
   assert.strictEqual(invalidEmail.valid, false);
   assert.strictEqual(typeof invalidEmail.error, "string");
   assert.ok(invalidEmail.error.length > 0);
+
+  // Test divide function
+  const divideResult = await mockWasm.divide(10, 2);
+  assert.strictEqual(divideResult, 5);
+
+  // Test divide throws on division by zero (automatic error throwing)
+  await assert.rejects(
+    mockWasm.divide(10, 0),
+    { message: /division by zero/ }
+  );
 });

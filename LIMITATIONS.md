@@ -7,7 +7,7 @@ gowasm-bindgen generates TypeScript declarations from Go source code. This docum
 ✅ **No more awkward js.Value signatures** - Write normal Go functions
 ✅ **Direct type inference** - Types inferred from function signatures
 ✅ **Automatic bindings generation** - No manual `js.Global().Set()` calls
-✅ **Better error handling** - Return structs with error fields
+✅ **Automatic error throwing** - Go `(T, error)` returns automatically throw in TypeScript
 
 ## Current Limitations
 
@@ -58,51 +58,6 @@ await wasm.forEach(items, (item) => console.log(item));
 ```
 
 Go does support callbacks via `js.FuncOf()`, but detection and type generation is complex.
-
-### No Automatic Error Throwing
-
-Go functions that return `(T, error)` are supported, but errors aren't automatically thrown:
-
-```go
-// Go code with error return
-func ValidateEmail(email string) (EmailResult, error) {
-    if !strings.Contains(email, "@") {
-        return EmailResult{}, errors.New("invalid email")
-    }
-    return EmailResult{Valid: true}, nil
-}
-```
-
-```typescript
-// TypeScript: error returned as second value
-const [result, err] = await wasm.validateEmail("bad");
-if (err) {
-  console.error(err);
-}
-
-// Rust wasm-bindgen: Result<T,E> becomes try/catch
-try {
-  const result = validateEmail("bad");
-} catch (e) {
-  console.error(e);
-}
-```
-
-**Workaround:** Return a struct with error field instead:
-
-```go
-type EmailResult struct {
-    Valid bool   `json:"valid"`
-    Error string `json:"error"`
-}
-
-func ValidateEmail(email string) EmailResult {
-    if !strings.Contains(email, "@") {
-        return EmailResult{Valid: false, Error: "invalid email"}
-    }
-    return EmailResult{Valid: true}
-}
-```
 
 ### Class-Based but Not OOP
 
@@ -171,7 +126,7 @@ Rust has `wasm-pack` for a complete workflow. gowasm-bindgen is just the type ge
 | Typed arrays | ✅ | ❌ |
 | Closures/callbacks | ✅ | ❌ |
 | Promises/async | ✅ | ✅ (default) |
-| Error handling | ✅ Result<T,E> throws | ⚠️ Manual (struct fields) |
+| Error handling | ✅ Result<T,E> throws | ✅ (T, error) throws |
 | JS imports | ✅ | ❌ |
 | Build toolchain | ✅ wasm-pack | ❌ |
 | Normal function syntax | ❌ Requires annotations | ✅ No annotations needed |
@@ -192,8 +147,8 @@ Potential improvements (contributions welcome):
 - [x] Class-based API instead of window globals
 - [x] Source-based type inference (no tests required)
 - [x] Automatic Go bindings generation
+- [x] Automatic error throwing for `(T, error)` returns
 - [ ] Typed array detection and generation
-- [ ] Automatic error throwing for `(T, error)` returns
 - [ ] `wasm-pack`-style CLI for complete workflow
 - [ ] Callback/closure support via `js.FuncOf()` detection
 

@@ -126,6 +126,35 @@ class Main {
 }
 ```
 
+### Error Returns
+
+Functions that return `(T, error)` automatically throw in TypeScript:
+
+```go
+func Divide(a, b int) (int, error) {
+    if b == 0 {
+        return 0, errors.New("division by zero")
+    }
+    return a / b, nil
+}
+```
+
+This generates:
+
+```typescript
+class Main {
+    // Throws on error, returns number on success
+    divide(a: number, b: number): Promise<number>;
+}
+
+// Usage:
+try {
+    const result = await wasm.divide(10, 0);
+} catch (e) {
+    console.error(e.message);  // "division by zero"
+}
+```
+
 ### Testing (Optional)
 
 Tests are no longer required for type generation, but you should still write them:

@@ -51,14 +51,27 @@ console.log(user.displayName);  // "Alice (30)"
 console.log(user.status);       // "active"
 ```
 
-### 3. Clean up when done
+### 3. Handle errors with try/catch
+
+Go functions that return `(T, error)` automatically throw in TypeScript:
+
+```typescript
+// Go: func Divide(a, b int) (int, error)
+try {
+  const result = await wasm.divide(10, 0);
+} catch (e) {
+  console.error(e.message);  // "division by zero"
+}
+```
+
+### 4. Clean up when done
 
 ```typescript
 // Terminate the Web Worker when you're done
 wasm.terminate();
 ```
 
-### 4. TypeScript catches your mistakes
+### 5. TypeScript catches your mistakes
 
 ```typescript
 // Error: Argument of type 'number' is not assignable to parameter of type 'string'

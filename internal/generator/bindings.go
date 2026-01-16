@@ -7,6 +7,12 @@ import (
 	"github.com/13rac1/gowasm-bindgen/internal/parser"
 )
 
+// ErrorFieldName is the JSON field used to pass Go errors through the WASM boundary.
+// When a Go function returns (T, error), the generated binding returns
+// map[string]interface{}{ErrorFieldName: err.Error()} on error.
+// The TypeScript client checks for this field and throws it as a JavaScript Error.
+const ErrorFieldName = "__error"
+
 // GenerateGoBindings generates Go wrapper code for WASM export
 func GenerateGoBindings(parsed *parser.ParsedFile) string {
 	var b strings.Builder
@@ -87,7 +93,9 @@ func generateWrapperFunction(fn parser.GoFunction) string {
 	// Handle errors
 	if hasError {
 		b.WriteString("\tif err != nil {\n")
-		b.WriteString("\t\treturn map[string]interface{}{\"__error\": err.Error()}\n")
+		b.WriteString("\t\treturn map[string]interface{}{\"")
+		b.WriteString(ErrorFieldName)
+		b.WriteString("\": err.Error()}\n")
 		b.WriteString("\t}\n")
 	}
 
