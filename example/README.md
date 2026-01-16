@@ -11,6 +11,10 @@ Go WASM modules expose functions on `window` with no type information—TypeScri
 - **types.d.ts** - Generated TypeScript declarations (your function types)
 - **wasm_exec.d.ts** - Generated TypeScript declarations (Go runtime types)
 
+With `--worker` flag, additional files are generated:
+- **worker.js** - Web Worker that runs Go WASM in a separate thread
+- **client.ts** - Typed Promise-based API for calling WASM functions
+
 ## Quick Start
 
 ```bash
@@ -34,6 +38,26 @@ make setup-go   # Copy wasm_exec.js from Go installation
 make build-go   # Build with standard Go
 make generate
 make verify
+```
+
+### Worker Mode (Non-blocking)
+
+By default, Go WASM functions block the main thread. For long-running operations, use worker mode to keep the UI responsive:
+
+```bash
+make generate-worker  # Generate worker.js + client.ts
+```
+
+Then use the Promise-based API:
+
+```typescript
+import { init, greet, calculate } from './client';
+
+await init('./worker.js');
+
+// Non-blocking! UI stays responsive
+const greeting = await greet('World');
+const result = await calculate(5, 3, 'add');
 ```
 
 ## Generated Output

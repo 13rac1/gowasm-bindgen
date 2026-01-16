@@ -69,6 +69,10 @@ go install github.com/13rac1/gowasm-bindgen/cmd/gowasm-bindgen@latest
 # Generate types from your tests
 gowasm-bindgen --tests "wasm/*_test.go" --output types.d.ts
 # Creates: types.d.ts (your functions) + wasm_exec.d.ts (Go runtime)
+
+# Or generate Web Worker wrapper for async/non-blocking API
+gowasm-bindgen --tests "wasm/*_test.go" --output types.d.ts --worker
+# Creates: worker.js + client.ts (Promise-based API)
 ```
 
 ## Get Started
@@ -113,7 +117,7 @@ No annotations. No build plugins. Just tests.
 
 See [LIMITATIONS.md](LIMITATIONS.md) for a comparison with Rust's wasm-bindgen and current gaps. Highlights:
 
-- Synchronous only (no Promises/async)
+- Synchronous by default (use `--worker` for async Promise-based API)
 - No typed arrays (requires string serialization)
 - No callbacks or closures
 - Functions on `window`, not classes

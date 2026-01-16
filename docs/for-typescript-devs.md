@@ -165,7 +165,7 @@ your-project/
 
 ## Common Gotchas
 
-### 1. WASM Functions Are Synchronous
+### 1. WASM Functions Are Synchronous (by default)
 
 Go WASM functions return immediately—they're not async:
 
@@ -175,6 +175,18 @@ const result = window.greet("World");
 
 // ❌ Wrong - greet() doesn't return a Promise!
 const result = await window.greet("World");
+```
+
+**Want async?** Use `--worker` flag to generate a Web Worker wrapper with Promise-based API:
+
+```bash
+gowasm-bindgen --tests "wasm/*_test.go" --output types.d.ts --worker
+```
+
+```typescript
+import { init, greet } from './client';
+await init('./worker.js');
+const result = await greet("World");  // Now it's async!
 ```
 
 ### 2. Module Loading Is Async, Function Calls Are Not
