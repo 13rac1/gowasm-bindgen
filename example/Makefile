@@ -1,4 +1,4 @@
-.PHONY: all build generate typecheck verify serve clean setup format lint check web dist
+.PHONY: all build generate generate-worker typecheck verify serve clean setup format lint check web dist
 
 # Build directory for all artifacts
 DIST := dist
@@ -39,6 +39,10 @@ setup-go:
 # Generate TypeScript declarations using gowasm-bindgen
 generate:
 	go run ../cmd/gowasm-bindgen/main.go --tests "wasm/*_test.go" --output types.d.ts
+
+# Generate Web Worker wrapper for async calls
+generate-worker:
+	go run ../cmd/gowasm-bindgen/main.go --tests "wasm/*_test.go" --output types.d.ts --worker
 
 # Type-check TypeScript (strict verification that generated types work)
 typecheck:
@@ -81,3 +85,4 @@ check: format lint
 clean:
 	rm -rf $(DIST)
 	rm -f example.wasm types.d.ts wasm_exec.js wasm_exec.d.ts web/app.js
+	rm -f client.ts worker.js

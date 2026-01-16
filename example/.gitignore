@@ -7,3 +7,7 @@ types.d.ts
 wasm_exec.js
 wasm_exec.d.ts
 web/app.js
+
+# Worker mode generated files
+client.ts
+worker.js

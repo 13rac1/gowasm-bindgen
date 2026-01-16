@@ -24,9 +24,11 @@ func run() error {
 	// Parse flags
 	var tests stringSlice
 	var output string
+	var worker bool
 
 	flag.Var(&tests, "tests", "glob pattern for test files (can be repeated)")
 	flag.StringVar(&output, "output", "", "output .d.ts file path")
+	flag.BoolVar(&worker, "worker", false, "generate Web Worker wrapper for async calls")
 	flag.Parse()
 
 	// Validate flags
@@ -87,15 +89,25 @@ func run() error {
 		return err
 	}
 
-	// Generate TypeScript
-	dts := generator.Generate(sigs)
-
 	// Create output directory if needed
 	if dir := filepath.Dir(output); dir != "." {
 		if err := os.MkdirAll(dir, 0755); err != nil {
 			return fmt.Errorf("creating output directory: %w", err)
 		}
 	}
+
+	if worker {
+		// Worker mode: generate client.ts and worker.js
+		return generateWorkerOutput(sigs, output)
+	}
+
+	// Default mode: generate types.d.ts and wasm_exec.d.ts
+	return generateDefaultOutput(sigs, output)
+}
+
+func generateDefaultOutput(sigs []extractor.FunctionSignature, output string) error {
+	// Generate TypeScript declarations
+	dts := generator.Generate(sigs)
 
 	// Write output
 	if err := os.WriteFile(output, []byte(dts), 0644); err != nil {
@@ -110,6 +122,31 @@ func run() error {
 
 	fmt.Printf("Generated %s with %d function(s)\n", output, len(sigs))
 	fmt.Printf("Generated %s (Go WASM runtime types)\n", runtimePath)
+	return nil
+}
+
+func generateWorkerOutput(sigs []extractor.FunctionSignature, output string) error {
+	outputDir := filepath.Dir(output)
+
+	// Generate worker.js
+	workerPath := filepath.Join(outputDir, "worker.js")
+	if err := os.WriteFile(workerPath, []byte(generator.GenerateWorker()), 0644); err != nil {
+		return fmt.Errorf("writing worker: %w", err)
+	}
+
+	// Generate client.ts
+	clientPath := filepath.Join(outputDir, "client.ts")
+	clientContent := generator.GenerateClient(sigs)
+	if err := os.WriteFile(clientPath, []byte(clientContent), 0644); err != nil {
+		return fmt.Errorf("writing client: %w", err)
+	}
+
+	fmt.Printf("Generated %s (Web Worker entry point)\n", workerPath)
+	fmt.Printf("Generated %s with %d function(s)\n", clientPath, len(sigs))
+	fmt.Println("\nUsage:")
+	fmt.Println("  import { init, greet } from './client';")
+	fmt.Println("  await init('./worker.js');")
+	fmt.Println("  const result = await greet('World');")
 	return nil
 }
 

@@ -4,19 +4,25 @@ gowasm-bindgen generates TypeScript declarations from Go tests. This document li
 
 ## Current Limitations
 
-### Synchronous Only
+### Synchronous by Default
 
 Go WASM functions block the main thread. Long-running operations freeze the UI.
 
 ```typescript
-// Current: blocks until complete
+// Default mode: blocks until complete
 const result = window.heavyComputation(data);  // UI frozen!
 ```
 
-**Future:** Run Go WASM in a Web Worker with Promise-based wrapper:
+**Solution:** Use `--worker` flag to generate a Web Worker wrapper with Promise-based API:
+```bash
+gowasm-bindgen --tests "wasm/*_test.go" --output types.d.ts --worker
+```
+
 ```typescript
-// Possible future API
-const result = await heavyComputation(data);  // non-blocking
+// Worker mode: non-blocking
+import { init, heavyComputation } from './client';
+await init('./worker.js');
+const result = await heavyComputation(data);  // UI stays responsive!
 ```
 
 ### No Typed Arrays
@@ -131,7 +137,7 @@ Rust has `wasm-pack` for a complete workflow. gowasm-bindgen is just the type ge
 | Objects | ✅ Classes with methods | ✅ Plain objects |
 | Typed arrays | ✅ | ❌ |
 | Closures/callbacks | ✅ | ❌ |
-| Promises/async | ✅ | ❌ |
+| Promises/async | ✅ | ✅ (`--worker`) |
 | Error handling | ✅ Result<T,E> | ❌ |
 | JS imports | ✅ | ❌ |
 | Build toolchain | ✅ wasm-pack | ❌ |
@@ -148,7 +154,7 @@ Rust has `wasm-pack` for a complete workflow. gowasm-bindgen is just the type ge
 
 Potential improvements (contributions welcome):
 
-- [ ] Web Worker wrapper generation for async/Promise API
+- [x] Web Worker wrapper generation for async/Promise API (`--worker` flag)
 - [ ] Typed array detection and generation
 - [ ] Error/Result pattern detection
 - [ ] `wasm-pack`-style CLI for complete workflow
