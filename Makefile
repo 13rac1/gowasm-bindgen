@@ -29,7 +29,7 @@ clean:
 	rm -f testdata/e2e/test.wasm testdata/e2e/test.d.ts testdata/e2e/wasm_exec.js
 	go clean -cache -testcache
 
-# End-to-end test: build WASM, generate .d.ts, run Deno tests
+# End-to-end test: build WASM, generate .d.ts, run TypeScript tests
 test-e2e: build
 	# Copy wasm_exec.js from Go installation
 	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" testdata/e2e/
@@ -37,5 +37,5 @@ test-e2e: build
 	GOOS=js GOARCH=wasm go build -o testdata/e2e/test.wasm ./testdata/e2e/wasm/
 	# Generate TypeScript declarations
 	./bin/gowasm-bindgen --tests "testdata/e2e/wasm/*_test.go" --output testdata/e2e/test.d.ts
-	# Run Deno tests
-	deno test --allow-read testdata/e2e/verify_test.ts
+	# Run TypeScript tests
+	npx tsx --test testdata/e2e/verify_test.ts

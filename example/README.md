@@ -7,7 +7,7 @@ Go WASM modules expose functions on `window` with no type information—TypeScri
 - **wasm/main.go** - Go WASM functions (greet, calculate, formatUser, sumNumbers, validateEmail)
 - **wasm/main_test.go** - Table-driven tests that gowasm-bindgen parses to extract types
 - **web/** - TypeScript browser demo using the generated types
-- **verify_test.ts** - Deno test to verify generated types work correctly
+- **verify_test.ts** - TypeScript test to verify generated types work correctly
 
 ## Quick Start
 
@@ -19,7 +19,7 @@ make all
 # 1. setup     - Copies wasm_exec.js from TinyGo installation
 # 2. build     - Compiles Go to WASM with TinyGo (example.wasm)
 # 3. generate  - Runs gowasm-bindgen to create types.d.ts
-# 4. verify    - Runs Deno tests to validate types
+# 4. verify    - Runs TypeScript tests to validate types
 # 5. web       - Compiles TypeScript demo using the generated types
 ```
 
@@ -113,5 +113,5 @@ make serve
 
 - [TinyGo](https://tinygo.org/getting-started/install/) (recommended for small WASM binaries)
 - Go 1.21+ (alternative, produces larger binaries)
-- Deno (for type verification)
+- Node.js 18+ (for type verification via tsx)
 - Python 3 (for `make serve`)

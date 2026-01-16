@@ -18,8 +18,9 @@ func TestGreet(t *testing.T) {
 			result := greet(js.Null(), []js.Value{
 				js.ValueOf(tt.name),
 			})
-			if result != tt.want {
-				t.Errorf("got %v, want %v", result, tt.want)
+			jsResult := result.(js.Value)
+			if got := jsResult.String(); got != tt.want {
+				t.Errorf("got %v, want %v", got, tt.want)
 			}
 		})
 	}
@@ -38,8 +39,9 @@ func TestAdd(t *testing.T) {
 			js.ValueOf(tt.a),
 			js.ValueOf(tt.b),
 		})
-		if result != tt.want {
-			t.Errorf("got %v, want %v", result, tt.want)
+		jsResult := result.(js.Value)
+		if got := jsResult.Int(); got != tt.want {
+			t.Errorf("got %v, want %v", got, tt.want)
 		}
 	}
 }
@@ -47,8 +49,12 @@ func TestAdd(t *testing.T) {
 func TestGetInfo(t *testing.T) {
 	result := getInfo(js.Null(), []js.Value{
 		js.ValueOf("test-app"),
-	}).(map[string]interface{})
-	if result["name"] != "test-app" {
-		t.Errorf("got name %v", result["name"])
+	})
+	jsResult := result.(js.Value)
+	if got := jsResult.Get("name").String(); got != "test-app" {
+		t.Errorf("got name %v", got)
+	}
+	if got := jsResult.Get("active").Bool(); !got {
+		t.Errorf("expected active to be true")
 	}
 }

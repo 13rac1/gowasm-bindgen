@@ -37,13 +37,13 @@ setup-go:
 generate:
 	go run ../cmd/gowasm-bindgen/main.go --tests "wasm/*_test.go" --output types.d.ts
 
-# Verify generated types work with Deno
+# Verify generated types work
 verify:
-	deno test --allow-read verify_test.ts
+	npx tsx --test verify_test.ts
 
 # Compile TypeScript web demo (uses generated types.d.ts)
 web: generate
-	deno run -A npm:esbuild web/app.ts --bundle --outfile=web/app.js
+	npx esbuild web/app.ts --bundle --outfile=web/app.js
 
 # Start a local web server to test the demo
 serve: all
@@ -64,4 +64,4 @@ check: format lint
 
 # Clean generated files
 clean:
-	rm -f example.wasm types.d.ts wasm_exec.js
+	rm -f example.wasm types.d.ts wasm_exec.js web/app.js

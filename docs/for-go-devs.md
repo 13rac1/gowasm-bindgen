@@ -191,7 +191,7 @@ See the [example/](../example/) directory for a working demo with:
 - Table-driven tests
 - TinyGo build with size optimizations
 - TypeScript web demo
-- Deno verification tests
+- TypeScript verification tests
 
 ## FAQ
 
