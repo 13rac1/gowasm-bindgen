@@ -3,6 +3,10 @@ bin/
 *.exe
 *.wasm
 
+# Node.js
+node_modules/
+package-lock.json
+
 # Test artifacts
 *.test
 coverage.out
