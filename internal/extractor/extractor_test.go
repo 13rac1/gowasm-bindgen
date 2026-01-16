@@ -6,7 +6,7 @@ import (
 	"go/token"
 	"testing"
 
-	goparser "github.com/13rac1/go-wasm-ts-gen/internal/parser"
+	goparser "github.com/13rac1/gowasm-bindgen/internal/parser"
 )
 
 func TestExtractSignatures(t *testing.T) {

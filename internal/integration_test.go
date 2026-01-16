@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/13rac1/go-wasm-ts-gen/internal/extractor"
-	"github.com/13rac1/go-wasm-ts-gen/internal/generator"
-	"github.com/13rac1/go-wasm-ts-gen/internal/parser"
+	"github.com/13rac1/gowasm-bindgen/internal/extractor"
+	"github.com/13rac1/gowasm-bindgen/internal/generator"
+	"github.com/13rac1/gowasm-bindgen/internal/parser"
 )
 
 // TestFullPipeline_Primitives tests the complete pipeline with primitive type parameters

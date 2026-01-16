@@ -33,9 +33,9 @@ build-go:
 setup-go:
 	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" .
 
-# Generate TypeScript declarations using go-wasm-ts-gen
+# Generate TypeScript declarations using gowasm-bindgen
 generate:
-	go run ../cmd/go-wasm-ts-gen/main.go --tests "wasm/*_test.go" --output types.d.ts
+	go run ../cmd/gowasm-bindgen/main.go --tests "wasm/*_test.go" --output types.d.ts
 
 # Verify generated types work with Deno
 verify:

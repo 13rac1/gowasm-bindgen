@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/13rac1/go-wasm-ts-gen/internal/extractor"
+	"github.com/13rac1/gowasm-bindgen/internal/extractor"
 )
 
 func TestGenerate(t *testing.T) {
@@ -76,7 +76,7 @@ func TestGenerateHeader(t *testing.T) {
 	got := GenerateHeader()
 	want := []string{
 		"Auto-generated TypeScript declarations",
-		"go-wasm-ts-gen",
+		"gowasm-bindgen",
 	}
 
 	for _, w := range want {

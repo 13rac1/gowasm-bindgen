@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/13rac1/go-wasm-ts-gen/internal/extractor"
+	"github.com/13rac1/gowasm-bindgen/internal/extractor"
 )
 
 // ValidationError holds multiple validation errors

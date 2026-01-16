@@ -1,3 +1,3 @@
-module github.com/13rac1/go-wasm-ts-gen
+module github.com/13rac1/gowasm-bindgen
 
 go 1.25.5

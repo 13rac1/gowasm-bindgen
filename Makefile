@@ -5,11 +5,11 @@ all: check build
 
 # Build the CLI binary
 build:
-	go build -o bin/go-wasm-ts-gen ./cmd/go-wasm-ts-gen
+	go build -o bin/gowasm-bindgen ./cmd/gowasm-bindgen
 
-# Run all tests
+# Run all tests (excludes example which needs WASM build tags)
 test:
-	go test -v ./...
+	go test -v ./cmd/... ./internal/...
 
 # Run golangci-lint (excludes example which needs WASM build tags)
 lint:
@@ -36,6 +36,6 @@ test-e2e: build
 	# Build WASM binary
 	GOOS=js GOARCH=wasm go build -o testdata/e2e/test.wasm ./testdata/e2e/wasm/
 	# Generate TypeScript declarations
-	./bin/go-wasm-ts-gen --tests "testdata/e2e/wasm/*_test.go" --output testdata/e2e/test.d.ts
+	./bin/gowasm-bindgen --tests "testdata/e2e/wasm/*_test.go" --output testdata/e2e/test.d.ts
 	# Run Deno tests
 	deno test --allow-read testdata/e2e/verify_test.ts

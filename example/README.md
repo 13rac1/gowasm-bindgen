@@ -1,11 +1,11 @@
-# go-wasm-ts-gen Example
+# gowasm-bindgen Example
 
 Go WASM modules expose functions on `window` with no type information—TypeScript sees them as `any`. This tool extracts parameter names and types from your Go tests to generate `.d.ts` declarations, giving you type-safe WASM calls in TypeScript.
 
 ## What's Included
 
 - **wasm/main.go** - Go WASM functions (greet, calculate, formatUser, sumNumbers, validateEmail)
-- **wasm/main_test.go** - Table-driven tests that go-wasm-ts-gen parses to extract types
+- **wasm/main_test.go** - Table-driven tests that gowasm-bindgen parses to extract types
 - **web/** - TypeScript browser demo using the generated types
 - **verify_test.ts** - Deno test to verify generated types work correctly
 
@@ -18,7 +18,7 @@ make all
 # This runs:
 # 1. setup     - Copies wasm_exec.js from TinyGo installation
 # 2. build     - Compiles Go to WASM with TinyGo (example.wasm)
-# 3. generate  - Runs go-wasm-ts-gen to create types.d.ts
+# 3. generate  - Runs gowasm-bindgen to create types.d.ts
 # 4. verify    - Runs Deno tests to validate types
 # 5. web       - Compiles TypeScript demo using the generated types
 ```
@@ -80,7 +80,7 @@ make serve
    ```go
    func TestGreet(t *testing.T) {
        tests := []struct {
-           name string  // <- go-wasm-ts-gen uses this as the parameter name
+           name string  // <- gowasm-bindgen uses this as the parameter name
            want string
        }{
            {name: "World", want: "Hello, World!"},
@@ -94,9 +94,9 @@ make serve
    }
    ```
 
-3. **Run go-wasm-ts-gen** to extract types from tests:
+3. **Run gowasm-bindgen** to extract types from tests:
    ```bash
-   go-wasm-ts-gen --tests "wasm/*_test.go" --output types.d.ts
+   gowasm-bindgen --tests "wasm/*_test.go" --output types.d.ts
    ```
 
 ## WASM Functions in This Example

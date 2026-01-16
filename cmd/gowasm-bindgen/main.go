@@ -6,10 +6,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/13rac1/go-wasm-ts-gen/internal/extractor"
-	"github.com/13rac1/go-wasm-ts-gen/internal/generator"
-	"github.com/13rac1/go-wasm-ts-gen/internal/parser"
-	"github.com/13rac1/go-wasm-ts-gen/internal/validator"
+	"github.com/13rac1/gowasm-bindgen/internal/extractor"
+	"github.com/13rac1/gowasm-bindgen/internal/generator"
+	"github.com/13rac1/gowasm-bindgen/internal/parser"
+	"github.com/13rac1/gowasm-bindgen/internal/validator"
 )
 
 func main() {
@@ -31,11 +31,11 @@ func run() error {
 	// Validate flags
 	if len(tests) == 0 {
 		return fmt.Errorf("--tests is required\n\n" +
-			"Usage: go-wasm-ts-gen --tests 'path/*_test.go' --output types.d.ts")
+			"Usage: gowasm-bindgen --tests 'path/*_test.go' --output types.d.ts")
 	}
 	if output == "" {
 		return fmt.Errorf("--output is required\n\n" +
-			"Usage: go-wasm-ts-gen --tests 'path/*_test.go' --output types.d.ts")
+			"Usage: gowasm-bindgen --tests 'path/*_test.go' --output types.d.ts")
 	}
 
 	// Parse test files

@@ -1,352 +1,100 @@
-# go-wasm-ts-gen
+# gowasm-bindgen
 
-Generate TypeScript declaration files from Go unit tests for WASM exports.
+**Type-safe Go in the browser.**
 
-## Overview
+Generate TypeScript declarations from your Go tests. Ship 90KB gzipped binaries with TinyGo.
 
-**go-wasm-ts-gen** is a zero-annotation TypeScript type generation tool for Go WASM modules. It extracts function signatures directly from your existing unit tests—no special comments, tags, or annotations required.
+## The Problem
 
-Instead of maintaining separate type definitions or adding build-time annotations, write tests that call your WASM functions and this tool will generate accurate TypeScript `.d.ts` files automatically. Works with both table-driven tests and simple direct calls.
+Go WASM functions are invisible to TypeScript:
 
-## Installation
+```typescript
+// TypeScript has no idea what this returns or accepts
+const result = window.myGoFunction(???, ???);  // any
+```
+
+And standard Go WASM binaries are huge (~2.4MB).
+
+## The Solution
+
+**gowasm-bindgen** extracts types from your existing Go tests:
+
+```go
+// Your Go test
+func TestGreet(t *testing.T) {
+    tests := []struct {
+        name string  // ← parameter name
+        want string
+    }{
+        {name: "World", want: "Hello, World!"},
+    }
+    for _, tt := range tests {
+        result := greet(js.Null(), []js.Value{
+            js.ValueOf(tt.name),  // ← type: string
+        })
+        jsResult := result.(js.Value)
+        got := jsResult.String()  // ← return type: string
+        // ...
+    }
+}
+```
+
+Generates:
+
+```typescript
+declare global {
+    interface Window {
+        greet(name: string): string;
+    }
+}
+```
+
+With TinyGo, your WASM binary drops from 2.4MB to **200KB (90KB gzipped)**.
+
+## Quick Start
 
 ```bash
-go install github.com/13rac1/go-wasm-ts-gen/cmd/go-wasm-ts-gen@latest
+# Install
+go install github.com/13rac1/gowasm-bindgen/cmd/gowasm-bindgen@latest
+
+# Generate types from your tests
+gowasm-bindgen --tests "wasm/*_test.go" --output types.d.ts
 ```
 
-## Usage
+## Get Started
+
+Choose your path:
+
+- **[For TypeScript Developers](docs/for-typescript-devs.md)** — Run Go in your frontend in 10 minutes
+- **[For Go Developers](docs/for-go-devs.md)** — Full-stack Go with proper JS types
+
+## See It Working
+
+The [example/](example/) directory has a complete demo:
 
 ```bash
-go-wasm-ts-gen --tests "cmd/wasm/*_test.go" --output types.d.ts
-```
-
-### Flags
-
-- `--tests` (required): Glob pattern for test files (can be specified multiple times)
-- `--output` (required): Output `.d.ts` file path
-
-### Example
-
-```bash
-# Generate types from a single test file
-go-wasm-ts-gen --tests "wasm/main_test.go" --output wasm/types.d.ts
-
-# Generate types from multiple test files
-go-wasm-ts-gen \
-  --tests "wasm/*_test.go" \
-  --tests "wasm/helpers/*_test.go" \
-  --output dist/types.d.ts
-```
-
-### Output
-
-The tool provides verbose output showing what it found:
-
-```
-Parsing test files...
-
-Found 2 WASM function(s):
-
-  greet (wasm/main_test.go:15)
-    Parameters:
-      - name: string
-    Return type: string
-
-  add (wasm/main_test.go:35)
-    Parameters:
-      - a: number
-      - b: number
-    Return type: number
-
-Generated types.d.ts with 2 function(s)
+cd example
+make all    # Build WASM, generate types, verify, compile TypeScript
+make serve  # Open http://localhost:8080/web/
 ```
 
 ## How It Works
 
-The tool analyzes Go test files and extracts WASM function signatures through a multi-stage process:
+1. Parse your Go test files
+2. Find WASM function calls (`funcName(js.Null(), []js.Value{...})`)
+3. Extract parameter names from struct fields or variable names
+4. Extract parameter types from `js.ValueOf()` calls
+5. Infer return types from result accessors (`.String()`, `.Int()`, `.Bool()`, `.Get()`)
+6. Generate `.d.ts` with proper TypeScript declarations
 
-1. **Parse Go test files** using `go/parser` to build an AST
-2. **Find Test functions** that contain WASM call patterns
-3. **Extract parameter types** from `js.ValueOf()` calls in test code
-4. **Extract parameter names** from:
-   - Table-driven test struct field names (preferred)
-   - Variable names in `js.ValueOf(varName)` expressions
-   - Fallback to `arg0`, `arg1`, etc. for literals
-5. **Infer return types** from result handling methods like `.String()`, `.Int()`, `.Bool()`
-6. **Validate patterns** and fail with clear errors if malformed
-7. **Generate TypeScript declarations** with JSDoc comments containing usage examples
-
-### Input Example (Go Test)
-
-```go
-func TestGreet(t *testing.T) {
-    tests := []struct {
-        name string
-        want string
-    }{
-        {name: "World", want: "Hello, World!"},
-        {name: "Go", want: "Hello, Go!"},
-    }
-    for _, tt := range tests {
-        t.Run(tt.name, func(t *testing.T) {
-            result := greet(js.Null(), []js.Value{
-                js.ValueOf(tt.name),
-            })
-            if result != tt.want {
-                t.Errorf("got %v, want %v", result, tt.want)
-            }
-        })
-    }
-}
-
-func TestAdd(t *testing.T) {
-    tests := []struct {
-        a, b int
-        want int
-    }{
-        {a: 1, b: 2, want: 3},
-        {a: -1, b: 1, want: 0},
-    }
-    for _, tt := range tests {
-        result := add(js.Null(), []js.Value{
-            js.ValueOf(tt.a),
-            js.ValueOf(tt.b),
-        })
-        if result != tt.want {
-            t.Errorf("got %v, want %v", result, tt.want)
-        }
-    }
-}
-```
-
-### Output Example (TypeScript)
-
-```typescript
-/**
- * Auto-generated TypeScript declarations for Go WASM exports
- * Generated by go-wasm-ts-gen
- */
-/**
- * @example
- * // "World"
- * greet()
- * @example
- * // "Go"
- * greet()
- */
-declare global {
-  interface Window {
-    greet(name: string): any;
-  }
-}
-declare global {
-  interface Window {
-    add(a: number, b: number): any;
-  }
-}
-export {};
-```
-
-## Type Mapping
-
-The tool maps Go types to TypeScript according to this table:
-
-| Go Type | TypeScript Type |
-|---------|-----------------|
-| `string` | `string` |
-| `int`, `int8`, `int16`, `int32`, `int64` | `number` |
-| `uint`, `uint8`, `uint16`, `uint32`, `uint64` | `number` |
-| `float32`, `float64` | `number` |
-| `bool` | `boolean` |
-| `[]T` | `T[]` |
-| `map[string]T` | `{[key: string]: T}` |
-| Other types | `any` |
+No annotations. No build plugins. Just tests.
 
 ## Requirements
 
-### Parameter Names
-
-Parameter names are extracted in order of preference:
-
-**1. Table-driven test struct fields (best):**
-```go
-tests := []struct {
-    username string  // Parameter name: "username"
-    age      int     // Parameter name: "age"
-    want     string
-}{
-    {username: "alice", age: 30, want: "Alice (30)"},
-}
-```
-
-**2. Variable names in js.ValueOf():**
-```go
-func TestGreet(t *testing.T) {
-    userName := "Alice"
-    result := greet(js.Null(), []js.Value{
-        js.ValueOf(userName),  // Parameter name: "userName"
-    })
-}
-```
-
-**3. Fallback:** If using literals like `js.ValueOf("hello")` or `js.ValueOf(42)`, parameters are named `arg0`, `arg1`, etc.
-
-### WASM Call Pattern
-
-Tests must call functions with the standard Go WASM signature:
-
-```go
-func myFunc(this js.Value, args []js.Value) interface{}
-```
-
-And pass arguments using `js.ValueOf()`:
-
-```go
-result := myFunc(js.Null(), []js.Value{
-    js.ValueOf(param1),
-    js.ValueOf(param2),
-})
-```
-
-### Return Type Inference
-
-Return types are inferred from how test code accesses the result:
-
-```go
-result.String()     // infers: string
-result.Int()        // infers: number
-result.Bool()       // infers: boolean
-result.Get("key")   // infers: any (object/map)
-```
-
-If no accessor method is found, the return type defaults to `any`.
-
-## Error Handling
-
-The tool validates WASM call patterns and fails fast with clear error messages:
-
-```
-error: found 2 malformed WASM call pattern(s):
-  wasm/broken_test.go:15: function has 3 arguments, expected exactly 2 (badFunc)
-  wasm/broken_test.go:25: first argument is not js.Null() (anotherFunc)
-
-Expected pattern:
-  result := funcName(js.Null(), []js.Value{js.ValueOf(arg), ...})
-```
-
-### Detected Errors
-
-| Error | Cause |
-|-------|-------|
-| `function has N arguments, expected exactly 2` | Wrong number of arguments |
-| `first argument is not js.Null()` | Missing or wrong first argument |
-| `second argument is not []js.Value{...}` | Args not passed as slice literal |
-| `function is method/selector` | Using `pkg.Func()` instead of `Func()` |
-| `call is not assigned to a variable` | Missing `result :=` assignment |
-| `return type inferred as 'any'` | No result accessor methods found |
-
-## Limitations
-
-- **Only supports js.Value-based WASM patterns** (standard Go WASM signature)
-- **Return type inference is heuristic-based** and may default to `any` for complex types
-- **No support for function overloads** (Go doesn't support them either)
-- **Complex nested types** (nested objects, unions) may need manual refinement
-- **No runtime validation** of generated types against actual WASM behavior
-
-## FAQ
-
-### Why must I write tests?
-
-Go WASM functions have a generic signature that erases type information:
-
-```go
-func myFunc(this js.Value, args []js.Value) interface{}
-```
-
-The `args` parameter is `[]js.Value` (untyped), and the return is `interface{}` (untyped). There's no way to extract parameter names, types, or return types from this signature alone.
-
-Tests provide the missing type information through actual usage:
-- `js.ValueOf(stringVar)` reveals the parameter is a string
-- `result.Int()` reveals the return type is a number
-- Table struct fields like `username string` provide parameter names
-
-This approach has a nice side effect: **if you have tests, your types are correct by definition**. The generated TypeScript matches how your code is actually used.
-
-### Do I need my implementation in a `_test.go` file?
-
-**No.** Your implementation lives in normal `.go` files. Only the test file needs to follow the pattern.
-
-Typical project structure:
-```
-wasm/
-  main.go           # Your WASM implementation
-  main_test.go      # Tests that call your WASM functions (parsed by this tool)
-  types.d.ts        # Generated output
-```
-
-The tool only reads `*_test.go` files to extract signatures. Your implementation can be anywhere—the test just needs to import and call it with the WASM calling convention:
-
-```go
-// main.go - your implementation
-func Greet(this js.Value, args []js.Value) interface{} {
-    name := args[0].String()
-    return "Hello, " + name
-}
-
-// main_test.go - parsed by go-wasm-ts-gen
-func TestGreet(t *testing.T) {
-    result := Greet(js.Null(), []js.Value{js.ValueOf("World")})
-    // ...
-}
-```
-
-## Development
-
-### Build
-
-```bash
-make build
-```
-
-### Test
-
-```bash
-make test
-```
-
-### Lint and Format
-
-```bash
-make format
-make lint
-```
-
-### Full Check (format + lint + test)
-
-```bash
-make check
-```
-
-### End-to-End Test
-
-Runs the complete workflow: build WASM, generate types, verify with Deno:
-
-```bash
-make test-e2e
-```
-
-### Clean
-
-Remove build artifacts and generated test files:
-
-```bash
-make clean
-```
+- Go 1.21+
+- [TinyGo](https://tinygo.org/getting-started/install/) (recommended for small binaries)
+- Your WASM functions must use the standard signature: `func(js.Value, []js.Value) interface{}`
 
 ## License
 
 MIT
-
-## Contributing
-
-Contributions are welcome! Please ensure all tests pass (`make check`) before submitting a pull request.

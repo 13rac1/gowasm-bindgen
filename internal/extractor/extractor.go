@@ -6,7 +6,7 @@ import (
 	"go/token"
 	"strings"
 
-	"github.com/13rac1/go-wasm-ts-gen/internal/parser"
+	"github.com/13rac1/gowasm-bindgen/internal/parser"
 )
 
 // ExtractSignatures extracts function signatures from parsed test files
