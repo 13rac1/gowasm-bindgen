@@ -246,33 +246,27 @@ const host = config["host"];
 
 ## Browser vs Node.js Differences
 
-### Browser (`example/web/tsconfig.json`)
-```json
-{
-  "compilerOptions": {
-    "target": "ES2020",
-    "module": "ES2020",
-    "moduleResolution": "bundler",
-    "types": []  // Don't include Node.js types
-  }
-}
-```
-
-### Node.js (`example/tsconfig.json`)
+### Browser-focused (`example/tsconfig.json`)
 ```json
 {
   "compilerOptions": {
     "target": "ES2022",
-    "module": "NodeNext",
-    "moduleResolution": "NodeNext",
-    "types": ["node"]  // Include Node.js types
-  }
+    "module": "ES2022",
+    "moduleResolution": "bundler",
+    "types": ["node"]  // For Node.js test runner (verify_test.ts)
+  },
+  "include": ["src/**/*.ts", "generated/**/*.ts"]
 }
 ```
 
-**Key differences:**
-- **Browser:** Uses ES modules, bundler handles imports, no Node.js globals
-- **Node.js:** Uses NodeNext for ESM/CommonJS interop, includes `fs`, `path`, etc.
+The example uses `moduleResolution: "bundler"` because:
+- Source code (`src/app.ts`) is bundled with esbuild for browser use
+- Test code (`src/verify_test.ts`) runs in Node.js with the native test runner
+- The bundler handles resolving imports from `generated/client.ts`
+
+**Key notes:**
+- `types: ["node"]` enables Node.js built-ins for tests, but browser code shouldn't use them
+- `noEmit: true` because esbuild handles transpilation for the browser bundle
 
 ---
 

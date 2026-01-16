@@ -2,6 +2,11 @@
 bin/
 *.exe
 *.wasm
+/gowasm-bindgen
+/gowasm-bindgen-tmp
+
+# Generated files
+**/bindings_gen.go
 
 # Node.js
 node_modules/
