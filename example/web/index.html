@@ -76,7 +76,7 @@
     <div class="card">
         <h2>greet(name: string): string</h2>
         <input type="text" id="greetName" placeholder="Enter name" value="World">
-        <button onclick="runGreet()">Call greet()</button>
+        <button id="greetBtn">Call greet()</button>
         <div class="result" id="greetResult"></div>
     </div>
 
@@ -90,7 +90,7 @@
             <option value="mul">mul</option>
             <option value="div">div</option>
         </select>
-        <button onclick="runCalculate()">Call calculate()</button>
+        <button id="calcBtn">Call calculate()</button>
         <div class="result" id="calcResult"></div>
     </div>
 
@@ -99,21 +99,21 @@
         <input type="text" id="userName" placeholder="Name" value="Alice">
         <input type="number" id="userAge" placeholder="Age" value="30" style="width: 60px">
         <label><input type="checkbox" id="userActive" checked> Active</label>
-        <button onclick="runFormatUser()">Call formatUser()</button>
+        <button id="formatBtn">Call formatUser()</button>
         <div class="result" id="formatResult"></div>
     </div>
 
     <div class="card">
         <h2>sumNumbers(input: string): number</h2>
         <input type="text" id="numbersInput" placeholder="Comma-separated numbers" value="1, 2, 3, 4, 5">
-        <button onclick="runSumNumbers()">Call sumNumbers()</button>
+        <button id="sumBtn">Call sumNumbers()</button>
         <div class="result" id="sumResult"></div>
     </div>
 
     <div class="card">
         <h2>validateEmail(email: string): { valid: boolean, error?: string }</h2>
         <input type="text" id="emailInput" placeholder="Enter email" value="user@example.com">
-        <button onclick="runValidateEmail()">Call validateEmail()</button>
+        <button id="emailBtn">Call validateEmail()</button>
         <div class="result" id="emailResult"></div>
     </div>
 
