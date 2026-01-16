@@ -157,6 +157,94 @@ your-project/
 └── wasm_exec.js          # Go's WASM runtime (from TinyGo/Go)
 ```
 
+## Common Gotchas
+
+### 1. WASM Functions Are Synchronous
+
+Go WASM functions return immediately—they're not async:
+
+```typescript
+// ✅ Correct - synchronous call
+const result = window.greet("World");
+
+// ❌ Wrong - greet() doesn't return a Promise!
+const result = await window.greet("World");
+```
+
+### 2. Module Loading Is Async, Function Calls Are Not
+
+```typescript
+// ❌ Wrong - WASM isn't loaded yet!
+const go = new Go();
+WebAssembly.instantiateStreaming(fetch("app.wasm"), go.importObject);
+window.greet("World");  // Error: greet is not defined
+
+// ✅ Correct - wait for WASM to load first
+const go = new Go();
+const result = await WebAssembly.instantiateStreaming(fetch("app.wasm"), go.importObject);
+void go.run(result.instance);
+window.greet("World");  // Now it works
+```
+
+### 3. Types Don't Validate Runtime Data
+
+Generated types tell TypeScript what to expect, but they don't enforce it at runtime:
+
+```typescript
+const user = window.formatUser("Alice", 30, true);
+// TypeScript thinks: { displayName: string, status: string }
+
+// But if the Go code changes to return { name, active } instead,
+// TypeScript won't catch it! The generated types become stale.
+```
+
+**Solution:** Regenerate types when Go code changes, and keep tests in sync.
+
+### 4. Memory Considerations
+
+Each call to a WASM function copies data between JavaScript and Go:
+
+```typescript
+// ❌ Slow - copying large data on every call
+for (const item of hugeArray) {
+  window.processItem(item);
+}
+
+// ✅ Better - batch if possible
+window.processItems(hugeArray.join(","));
+```
+
+### 5. Debugging WASM Functions
+
+TypeScript debuggers can't step into WASM code. Use logging:
+
+```typescript
+// Log before/after the WASM call
+console.log("Calling greet with:", name);
+const result = window.greet(name);
+console.log("Result:", result);
+```
+
+In Go code, you can log to the browser console:
+```go
+js.Global().Get("console").Call("log", "Debug from Go:", value)
+```
+
+### 6. The `void` Operator Pattern
+
+You'll see `void` in our examples:
+
+```typescript
+void go.run(result.instance);
+void initWasm();
+```
+
+This is NOT "ignore the result"—it explicitly marks a Promise as intentionally not awaited. ESLint requires this to prevent accidental fire-and-forget bugs.
+
+## TypeScript Configuration
+
+See [typescript-config.md](./typescript-config.md) for a detailed explanation of our strict tsconfig settings.
+
 ## Next Steps
 
 - Check out the [example/](../example/) directory for a complete working demo
