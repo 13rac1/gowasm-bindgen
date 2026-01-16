@@ -17,8 +17,7 @@ func ExtractReturnType(fn *ast.FuncDecl, resultVar string) ReturnType {
 	isUnion, unionVariants := DetectUnionType(fn, resultVars)
 	if isUnion {
 		return ReturnType{
-			Type:    strings.Join(unionVariants, " | "),
-			IsUnion: true,
+			Type: strings.Join(unionVariants, " | "),
 		}
 	}
 

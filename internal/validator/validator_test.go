@@ -123,10 +123,7 @@ func TestValidate_ErrorFixtures(t *testing.T) {
 		t.Fatalf("failed to parse test file: %v", err)
 	}
 
-	sigs, _, err := extractor.ExtractSignatures(files, fset)
-	if err != nil {
-		t.Fatalf("failed to extract signatures: %v", err)
-	}
+	sigs, _ := extractor.ExtractSignatures(files, fset)
 
 	if len(sigs) == 0 {
 		t.Fatal("no signatures found")

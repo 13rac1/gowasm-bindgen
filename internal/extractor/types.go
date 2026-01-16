@@ -20,9 +20,8 @@ type Parameter struct {
 
 // ReturnType represents the return type of a function
 type ReturnType struct {
-	Type    string  // TypeScript type string
-	IsUnion bool    // Has union variants (e.g., success|error)
-	Fields  []Field // For object returns
+	Type   string  // TypeScript type string (always set)
+	Fields []Field // For object returns (optional metadata for inspection)
 }
 
 // Field represents a field in an object return type

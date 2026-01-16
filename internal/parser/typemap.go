@@ -7,10 +7,6 @@ import (
 
 // GoTypeToTS converts a Go type expression to TypeScript type string
 func GoTypeToTS(expr ast.Expr) string {
-	if expr == nil {
-		return "any"
-	}
-
 	switch t := expr.(type) {
 	case *ast.Ident:
 		return identToTS(t.Name)
@@ -57,10 +53,6 @@ func identToTS(name string) string {
 
 // InferTypeFromLiteral attempts to infer Go type from a literal expression
 func InferTypeFromLiteral(expr ast.Expr) string {
-	if expr == nil {
-		return "any"
-	}
-
 	switch lit := expr.(type) {
 	case *ast.BasicLit:
 		switch lit.Kind.String() {

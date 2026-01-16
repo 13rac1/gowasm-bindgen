@@ -9,9 +9,9 @@ import (
 	"github.com/13rac1/gowasm-bindgen/internal/parser"
 )
 
-// ExtractSignatures extracts function signatures from parsed test files
-// Returns signatures and any rejected calls (malformed WASM patterns)
-func ExtractSignatures(files []*ast.File, fset *token.FileSet) ([]FunctionSignature, []parser.RejectedCall, error) {
+// ExtractSignatures extracts function signatures from parsed test files.
+// Returns signatures and any rejected calls (malformed WASM patterns).
+func ExtractSignatures(files []*ast.File, fset *token.FileSet) ([]FunctionSignature, []parser.RejectedCall) {
 	testFuncs := parser.FindTestFunctions(files)
 
 	var signatures []FunctionSignature
@@ -27,7 +27,7 @@ func ExtractSignatures(files []*ast.File, fset *token.FileSet) ([]FunctionSignat
 		}
 	}
 
-	return signatures, allRejections, nil
+	return signatures, allRejections
 }
 
 // extractSignature extracts a complete function signature from a WASM call

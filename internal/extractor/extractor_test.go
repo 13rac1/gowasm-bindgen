@@ -35,10 +35,7 @@ func TestExtractSignatures(t *testing.T) {
 				t.Fatalf("failed to parse file: %v", err)
 			}
 
-			sigs, _, err := ExtractSignatures([]*ast.File{file}, fset)
-			if err != nil {
-				t.Fatalf("ExtractSignatures() error = %v", err)
-			}
+			sigs, _ := ExtractSignatures([]*ast.File{file}, fset)
 
 			if len(sigs) != tt.wantLen {
 				t.Errorf("ExtractSignatures() got %d signatures, want %d", len(sigs), tt.wantLen)
