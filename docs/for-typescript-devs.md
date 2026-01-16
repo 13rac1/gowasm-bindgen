@@ -83,19 +83,21 @@ See the [example/web/app.ts](../example/web/app.ts) for a working TypeScript app
 
 ```typescript
 // Types included via tsconfig.json - no triple-slash needed
-const go = new Go();
+async function initWasm(): Promise<void> {
+    const go = new Go();
 
-WebAssembly.instantiateStreaming(fetch("../example.wasm"), go.importObject)
-    .then((result): void => {
-        void go.run(result.instance);
+    const result = await WebAssembly.instantiateStreaming(
+        fetch("example.wasm"),
+        go.importObject
+    );
+    void go.run(result.instance);
 
-        // Now you can call Go functions with type safety
-        const greeting: string = window.greet("TypeScript");
-        console.log(greeting);
-    })
-    .catch((err: unknown): void => {
-        console.error(err instanceof Error ? err.message : String(err));
-    });
+    // Now you can call Go functions with type safety
+    const greeting: string = window.greet("TypeScript");
+    console.log(greeting);
+}
+
+void initWasm();
 ```
 
 ## Troubleshooting
@@ -252,5 +254,5 @@ See [typescript-config.md](./typescript-config.md) for a detailed explanation of
 ## Next Steps
 
 - Check out the [example/](../example/) directory for a complete working demo
-- Run `make serve` in the example directory to try it in your browser
+- Run `make serve` in the example directory, then open http://localhost:8080
 - Read [for-go-devs.md](./for-go-devs.md) if you want to understand how the Go side works
