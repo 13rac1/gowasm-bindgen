@@ -25,13 +25,22 @@ If you have tests, your types are correct by definition.
 |---|-------------|--------|
 | Binary size | ~2.4 MB | ~200 KB |
 | Gzipped | ~600 KB | ~90 KB |
-| Full stdlib | Yes | Partial |
+| Language support | Full | [Partial](https://tinygo.org/docs/reference/lang-support/) |
+| Stdlib | Full | Partial |
 | Reflection | Full | Limited |
 
-**Recommendation**: Use TinyGo for production. The size difference is dramatic.
+**TinyGo Limitations**: TinyGo doesn't support all Go features. Notable gaps include:
+- `reflect.Value.Call()` and `reflect.MakeFunc()`
+- Some `encoding/json` edge cases
+- `go:linkname` directives
+- Three-index slicing (`a[1:2:3]`)
+
+See the [TinyGo Language Support](https://tinygo.org/docs/reference/lang-support/) page for details.
+
+**When to use Standard Go**: If your code uses unsupported features, or you need full `reflect` capabilities for JSON marshaling complex types, use standard Go and accept the larger binary.
 
 ```bash
-# TinyGo (recommended)
+# TinyGo (smaller binaries, some limitations)
 tinygo build -o app.wasm -target wasm -opt=z -no-debug -panic=trap ./wasm/
 
 # Standard Go (larger but full compatibility)

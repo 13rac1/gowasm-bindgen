@@ -103,8 +103,10 @@ No annotations. No build plugins. Just tests.
 ## Requirements
 
 - Go 1.21+
-- [TinyGo](https://tinygo.org/getting-started/install/) (recommended for small binaries)
+- [TinyGo](https://tinygo.org/getting-started/install/) (recommended for small binaries) or standard Go
 - Your WASM functions must use the standard signature: `func(js.Value, []js.Value) interface{}`
+
+**Note**: TinyGo produces much smaller binaries but has [language limitations](https://tinygo.org/docs/reference/lang-support/). Use standard Go if you need full reflection or unsupported features.
 
 ## License
 
