@@ -9,6 +9,7 @@ import (
 	"github.com/13rac1/gowasm-bindgen/internal/extractor"
 	"github.com/13rac1/gowasm-bindgen/internal/generator"
 	"github.com/13rac1/gowasm-bindgen/internal/parser"
+	"github.com/13rac1/gowasm-bindgen/internal/runtime"
 	"github.com/13rac1/gowasm-bindgen/internal/validator"
 )
 
@@ -46,10 +47,7 @@ func run() error {
 	}
 
 	// Extract signatures
-	sigs, rejections, err := extractor.ExtractSignatures(files, fset)
-	if err != nil {
-		return fmt.Errorf("extracting signatures: %w", err)
-	}
+	sigs, rejections := extractor.ExtractSignatures(files, fset)
 
 	// Fail on malformed WASM patterns
 	if len(rejections) > 0 {
@@ -104,7 +102,14 @@ func run() error {
 		return fmt.Errorf("writing output: %w", err)
 	}
 
+	// Write wasm_exec.d.ts alongside output
+	runtimePath := filepath.Join(filepath.Dir(output), "wasm_exec.d.ts")
+	if err := os.WriteFile(runtimePath, []byte(runtime.WasmExecDTS), 0644); err != nil {
+		return fmt.Errorf("writing runtime types: %w", err)
+	}
+
 	fmt.Printf("Generated %s with %d function(s)\n", output, len(sigs))
+	fmt.Printf("Generated %s (Go WASM runtime types)\n", runtimePath)
 	return nil
 }
 
