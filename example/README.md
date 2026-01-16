@@ -1,12 +1,12 @@
 # go-wasm-ts-gen Example
 
-This example demonstrates how to use `go-wasm-ts-gen` to generate TypeScript declarations for a Go WASM module.
+Go WASM modules expose functions on `window` with no type information—TypeScript sees them as `any`. This tool extracts parameter names and types from your Go tests to generate `.d.ts` declarations, giving you type-safe WASM calls in TypeScript.
 
 ## What's Included
 
-- **wasm/main.go** - Go WASM functions (greet, calculate, formatUser, parseNumbers, validateEmail)
+- **wasm/main.go** - Go WASM functions (greet, calculate, formatUser, sumNumbers, validateEmail)
 - **wasm/main_test.go** - Table-driven tests that go-wasm-ts-gen parses to extract types
-- **web/** - Browser demo to interact with the WASM functions
+- **web/** - TypeScript browser demo using the generated types
 - **verify_test.ts** - Deno test to verify generated types work correctly
 
 ## Quick Start
@@ -20,6 +20,7 @@ make all
 # 2. build     - Compiles Go to WASM with TinyGo (example.wasm)
 # 3. generate  - Runs go-wasm-ts-gen to create types.d.ts
 # 4. verify    - Runs Deno tests to validate types
+# 5. web       - Compiles TypeScript demo using the generated types
 ```
 
 ### Using Standard Go (Alternative)
@@ -46,7 +47,7 @@ declare global {
       displayName: string;
       status: string;
     };
-    parseNumbers(input: string): number[];
+    sumNumbers(input: string): number;
     validateEmail(email: string): {
       valid: boolean;
       error: string;
