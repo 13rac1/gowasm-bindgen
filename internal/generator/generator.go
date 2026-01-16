@@ -17,6 +17,15 @@ func Generate(sigs []extractor.FunctionSignature) string {
 	b.WriteString(GenerateHeader())
 	b.WriteString("\n")
 
+	// First, generate named interfaces for object return types
+	for _, sig := range sigs {
+		if iface := GenerateInterface(sig); iface != "" {
+			b.WriteString(iface)
+			b.WriteString("\n")
+		}
+	}
+
+	// Then generate function declarations
 	for _, sig := range sigs {
 		b.WriteString(GenerateFunction(sig))
 		b.WriteString("\n")
@@ -35,6 +44,7 @@ func GenerateHeader() string {
 }
 
 // GenerateFunction creates TypeScript declaration for a single function.
+// Generates both Window interface extension (for browsers) and var declaration (for Node.js/globalThis).
 func GenerateFunction(sig extractor.FunctionSignature) string {
 	var b strings.Builder
 
@@ -44,16 +54,34 @@ func GenerateFunction(sig extractor.FunctionSignature) string {
 		b.WriteString("\n")
 	}
 
+	params := GenerateParams(sig.Params)
+
+	// Use named interface for object returns, otherwise use the type directly
+	var returnType string
+	if len(sig.Returns.Fields) > 0 {
+		returnType = InterfaceName(sig.Name)
+	} else {
+		returnType = sig.Returns.Type
+	}
+
 	b.WriteString("declare global {\n")
 	b.WriteString("  interface Window {\n")
 	b.WriteString("    ")
 	b.WriteString(sig.Name)
 	b.WriteString("(")
-	b.WriteString(GenerateParams(sig.Params))
+	b.WriteString(params)
 	b.WriteString("): ")
-	b.WriteString(GenerateReturnType(sig.Returns))
+	b.WriteString(returnType)
 	b.WriteString(";\n")
 	b.WriteString("  }\n")
+	// Also declare as global var for Node.js/globalThis access
+	b.WriteString("  var ")
+	b.WriteString(sig.Name)
+	b.WriteString(": (")
+	b.WriteString(params)
+	b.WriteString(") => ")
+	b.WriteString(returnType)
+	b.WriteString(";\n")
 	b.WriteString("}")
 
 	return b.String()
@@ -101,46 +129,9 @@ func GenerateParams(params []extractor.Parameter) string {
 }
 
 // GenerateReturnType formats the return type as TypeScript.
+// Type is always set by ExtractReturnType, so we just return it directly.
 func GenerateReturnType(ret extractor.ReturnType) string {
-	if ret.Type != "" && len(ret.Fields) == 0 {
-		return ret.Type
-	}
-
-	if len(ret.Fields) == 0 {
-		return "void"
-	}
-
-	if ret.IsUnion {
-		return generateUnionType(ret.Fields)
-	}
-
-	return generateObjectType(ret.Fields)
-}
-
-// generateObjectType creates an object type literal from fields.
-func generateObjectType(fields []extractor.Field) string {
-	if len(fields) == 0 {
-		return "{}"
-	}
-
-	parts := make([]string, len(fields))
-	for i, f := range fields {
-		parts[i] = fmt.Sprintf("%s: %s", f.Name, f.Type)
-	}
-	return "{" + strings.Join(parts, ", ") + "}"
-}
-
-// generateUnionType creates a union type from fields.
-func generateUnionType(fields []extractor.Field) string {
-	if len(fields) == 0 {
-		return "void"
-	}
-
-	parts := make([]string, len(fields))
-	for i, f := range fields {
-		parts[i] = fmt.Sprintf("{%s: %s}", f.Name, f.Type)
-	}
-	return strings.Join(parts, " | ")
+	return ret.Type
 }
 
 // FormatExample formats a single example for JSDoc.
@@ -160,4 +151,38 @@ func FormatExample(sig extractor.FunctionSignature, ex extractor.Example) string
 	b.WriteString(")")
 
 	return b.String()
+}
+
+// GenerateInterface creates a named interface for object return types.
+// Returns empty string if the function doesn't return an object type.
+func GenerateInterface(sig extractor.FunctionSignature) string {
+	if len(sig.Returns.Fields) == 0 {
+		return ""
+	}
+
+	var b strings.Builder
+	b.WriteString("interface ")
+	b.WriteString(InterfaceName(sig.Name))
+	b.WriteString(" {\n")
+
+	for _, field := range sig.Returns.Fields {
+		b.WriteString("  ")
+		b.WriteString(field.Name)
+		b.WriteString(": ")
+		b.WriteString(field.Type)
+		b.WriteString(";\n")
+	}
+
+	b.WriteString("}")
+	return b.String()
+}
+
+// InterfaceName converts a function name to a result interface name.
+// e.g., "formatUser" -> "FormatUserResult", "getInfo" -> "GetInfoResult"
+func InterfaceName(funcName string) string {
+	if funcName == "" {
+		return "Result"
+	}
+	// Capitalize first letter and append "Result"
+	return strings.ToUpper(funcName[:1]) + funcName[1:] + "Result"
 }

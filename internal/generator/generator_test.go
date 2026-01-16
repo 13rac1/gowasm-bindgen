@@ -105,6 +105,7 @@ func TestGenerateFunction(t *testing.T) {
 				"declare global",
 				"interface Window",
 				"hashData(data: string): string;",
+				"var hashData: (data: string) => string;", // globalThis support
 			},
 		},
 		{
@@ -126,6 +127,7 @@ func TestGenerateFunction(t *testing.T) {
 					{Name: "input", Type: "string"},
 				},
 				Returns: extractor.ReturnType{
+					Type: "{valid: boolean, hash: string}",
 					Fields: []extractor.Field{
 						{Name: "valid", Type: "boolean"},
 						{Name: "hash", Type: "string"},
@@ -133,7 +135,8 @@ func TestGenerateFunction(t *testing.T) {
 				},
 			},
 			want: []string{
-				"validate(input: string): {valid: boolean, hash: string};",
+				"validate(input: string): ValidateResult;",         // Uses named interface
+				"var validate: (input: string) => ValidateResult;", // globalThis support
 			},
 		},
 		{
@@ -278,7 +281,7 @@ func TestGenerateReturnType_Primitive(t *testing.T) {
 		},
 		{
 			name: "void",
-			ret:  extractor.ReturnType{},
+			ret:  extractor.ReturnType{Type: "void"},
 			want: "void",
 		},
 	}
@@ -302,6 +305,7 @@ func TestGenerateReturnType_Object(t *testing.T) {
 		{
 			name: "single field",
 			ret: extractor.ReturnType{
+				Type: "{result: string}",
 				Fields: []extractor.Field{
 					{Name: "result", Type: "string"},
 				},
@@ -311,6 +315,7 @@ func TestGenerateReturnType_Object(t *testing.T) {
 		{
 			name: "multiple fields",
 			ret: extractor.ReturnType{
+				Type: "{valid: boolean, hash: string, count: number}",
 				Fields: []extractor.Field{
 					{Name: "valid", Type: "boolean"},
 					{Name: "hash", Type: "string"},
@@ -340,23 +345,14 @@ func TestGenerateReturnType_Union(t *testing.T) {
 		{
 			name: "two variants",
 			ret: extractor.ReturnType{
-				IsUnion: true,
-				Fields: []extractor.Field{
-					{Name: "success", Type: "boolean"},
-					{Name: "error", Type: "string"},
-				},
+				Type: "{success: boolean} | {error: string}",
 			},
 			want: "{success: boolean} | {error: string}",
 		},
 		{
 			name: "three variants",
 			ret: extractor.ReturnType{
-				IsUnion: true,
-				Fields: []extractor.Field{
-					{Name: "data", Type: "string"},
-					{Name: "error", Type: "string"},
-					{Name: "loading", Type: "boolean"},
-				},
+				Type: "{data: string} | {error: string} | {loading: boolean}",
 			},
 			want: "{data: string} | {error: string} | {loading: boolean}",
 		},
@@ -412,6 +408,81 @@ func TestFormatExample(t *testing.T) {
 			got := FormatExample(tt.sig, tt.ex)
 			if got != tt.want {
 				t.Errorf("FormatExample() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGenerateInterface(t *testing.T) {
+	tests := []struct {
+		name string
+		sig  extractor.FunctionSignature
+		want string
+	}{
+		{
+			name: "no fields returns empty",
+			sig: extractor.FunctionSignature{
+				Name:    "greet",
+				Returns: extractor.ReturnType{Type: "string"},
+			},
+			want: "",
+		},
+		{
+			name: "single field",
+			sig: extractor.FunctionSignature{
+				Name: "getInfo",
+				Returns: extractor.ReturnType{
+					Type: "{active: boolean}",
+					Fields: []extractor.Field{
+						{Name: "active", Type: "boolean"},
+					},
+				},
+			},
+			want: "interface GetInfoResult {\n  active: boolean;\n}",
+		},
+		{
+			name: "multiple fields",
+			sig: extractor.FunctionSignature{
+				Name: "formatUser",
+				Returns: extractor.ReturnType{
+					Type: "{displayName: string, status: string}",
+					Fields: []extractor.Field{
+						{Name: "displayName", Type: "string"},
+						{Name: "status", Type: "string"},
+					},
+				},
+			},
+			want: "interface FormatUserResult {\n  displayName: string;\n  status: string;\n}",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := GenerateInterface(tt.sig)
+			if got != tt.want {
+				t.Errorf("GenerateInterface() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestInterfaceName(t *testing.T) {
+	tests := []struct {
+		funcName string
+		want     string
+	}{
+		{"formatUser", "FormatUserResult"},
+		{"getInfo", "GetInfoResult"},
+		{"validate", "ValidateResult"},
+		{"a", "AResult"},
+		{"", "Result"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.funcName, func(t *testing.T) {
+			got := InterfaceName(tt.funcName)
+			if got != tt.want {
+				t.Errorf("InterfaceName(%q) = %q, want %q", tt.funcName, got, tt.want)
 			}
 		})
 	}
