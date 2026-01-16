@@ -109,6 +109,15 @@ No annotations. No build plugins. Just tests.
 
 **Note**: TinyGo produces much smaller binaries but has [language limitations](https://tinygo.org/docs/reference/lang-support/). Use standard Go if you need full reflection or unsupported features.
 
+## Limitations
+
+See [LIMITATIONS.md](LIMITATIONS.md) for a comparison with Rust's wasm-bindgen and current gaps. Highlights:
+
+- Synchronous only (no Promises/async)
+- No typed arrays (requires string serialization)
+- No callbacks or closures
+- Functions on `window`, not classes
+
 ## License
 
 MIT
