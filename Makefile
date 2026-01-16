@@ -1,4 +1,4 @@
-.PHONY: all build test lint format check clean test-e2e
+.PHONY: all build test lint vet format check clean test-e2e
 
 # Default target: check code quality and build
 all: check build
@@ -15,6 +15,11 @@ test:
 lint:
 	golangci-lint run ./cmd/... ./internal/...
 	GOOS=js GOARCH=wasm golangci-lint run ./example/...
+
+# Run go vet (excludes example which needs WASM build tags)
+vet:
+	go vet ./cmd/... ./internal/...
+	GOOS=js GOARCH=wasm go vet ./example/...
 
 # Format code with gofmt
 format:

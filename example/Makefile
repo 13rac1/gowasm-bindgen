@@ -1,7 +1,7 @@
-.PHONY: all build generate verify serve clean setup format lint check web
+.PHONY: all build generate typecheck verify serve clean setup format lint check web
 
 # Build WASM, generate types, and verify
-all: setup build generate verify web
+all: setup build generate typecheck verify web
 
 # Copy wasm_exec.js from TinyGo installation
 setup:
@@ -37,7 +37,12 @@ setup-go:
 generate:
 	go run ../cmd/gowasm-bindgen/main.go --tests "wasm/*_test.go" --output types.d.ts
 
-# Verify generated types work
+# Type-check TypeScript (strict verification that generated types work)
+typecheck:
+	npx tsc --noEmit --project tsconfig.json
+	npx tsc --noEmit --project web/tsconfig.json
+
+# Run TypeScript tests (also exercises the WASM functions at runtime)
 verify:
 	npx tsx --test verify_test.ts
 
