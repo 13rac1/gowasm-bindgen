@@ -67,9 +67,14 @@ const hash = await wasm.hashData(data);  // Returns Uint8Array
 
 **Performance note**: Byte arrays (`[]byte`) use `js.CopyBytesToGo()` and `js.CopyBytesToJS()` for efficient bulk copying. Other numeric types use element-by-element iteration since Go WASM doesn't provide bulk copy for non-byte types.
 
-### Void Callbacks Only
+### Void Callbacks (Sync Mode Only)
 
-Void callbacks (callbacks with no return value) are supported:
+Void callbacks (callbacks with no return value) are supported, but **only in sync mode** (`--sync` flag):
+
+```bash
+# Callbacks require sync mode
+gowasm-bindgen --sync --output client.ts --go-output bindings_gen.go main.go
+```
 
 ```go
 // Go: void callback parameter
@@ -81,13 +86,16 @@ func ForEach(items []string, callback func(string, int)) {
 ```
 
 ```typescript
-// TypeScript: callback type is inferred
-await wasm.forEach(["a", "b", "c"], (item, index) => {
+// TypeScript: callback type is inferred (sync mode only)
+wasm.forEach(["a", "b", "c"], (item, index) => {
     console.log(`${index}: ${item}`);
 });
 ```
 
+**Why sync mode only?** Web Workers use `postMessage()` which relies on the structured clone algorithm. Functions cannot be serialized, so callbacks fail with "Function object could not be cloned" in worker mode. The generator rejects callbacks in worker mode with a clear error message.
+
 **Limitations:**
+- **Callbacks require `--sync` mode** (cannot work in worker mode)
 - Callbacks must have no return value (void)
 - Callbacks are called synchronously
 - No nested callbacks (callback taking callback)

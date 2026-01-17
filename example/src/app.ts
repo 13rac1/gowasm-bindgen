@@ -145,7 +145,7 @@ async function initWasm(): Promise<void> {
     getElement("divideBtn", HTMLButtonElement).addEventListener("click", runDivide);
     getElement("hashBtn", HTMLButtonElement).addEventListener("click", runHashData);
     getElement("processBtn", HTMLButtonElement).addEventListener("click", runProcessNumbers);
-    getElement("forEachBtn", HTMLButtonElement).addEventListener("click", runForEach);
+    // Note: forEach with callback removed - callbacks require --sync mode
   } catch (err: unknown) {
     // Handle initialization errors (network failure, invalid WASM, etc.)
     const statusElement = getOptionalElement("status", HTMLElement);
@@ -286,19 +286,5 @@ function runProcessNumbers(): void {
   });
 }
 
-function runForEach(): void {
-  void withErrorHandlingAsync("forEachResult", async () => {
-    const input = getElement("forEachInput", HTMLInputElement);
-    const resultElement = getElement("forEachResult", HTMLElement);
-
-    const items = input.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
-    const collected: string[] = [];
-
-    // Pass a JavaScript callback to Go
-    await wasm.forEach(items, (item: string, index: number) => {
-      collected.push(`[${index}] ${item}`);
-    });
-
-    resultElement.textContent = `Callback invoked ${collected.length} times:\n${collected.join('\n')}`;
-  });
-}
+// Note: runForEach removed - callbacks require --sync mode
+// Web Workers cannot serialize JavaScript functions via postMessage

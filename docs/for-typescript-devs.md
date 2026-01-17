@@ -258,21 +258,30 @@ const doubled = await wasm.processNumbers(nums);  // Returns Int32Array
 | `[]float64` | `Float64Array` |
 | `func(T, U)` | `(arg0: T, arg1: U) => void` |
 
-### 5. Void Callbacks
+### 5. Void Callbacks (Sync Mode Only)
 
-Functions that take callback parameters work with TypeScript arrow functions:
+Functions that take callback parameters work with TypeScript arrow functions, but **callbacks require `--sync` mode**:
+
+```bash
+# Callbacks require sync mode - Web Workers cannot serialize functions
+gowasm-bindgen --sync --output client.ts --go-output bindings_gen.go main.go
+```
 
 ```typescript
 // Go: func ForEach(items []string, callback func(string, int))
-await wasm.forEach(["a", "b", "c"], (item, index) => {
+// Sync mode - no await needed
+wasm.forEach(["a", "b", "c"], (item, index) => {
     console.log(`${index}: ${item}`);
 });
 ```
 
+**Why sync mode only?** Web Workers use `postMessage()` which cannot serialize JavaScript functions. If you try to use callbacks in worker mode (the default), the generator will produce an error.
+
 **Limitations:**
+- **Callbacks require `--sync` mode** (cannot work in worker mode)
 - Callbacks must have no return value (void)
 - Callbacks are called synchronously
-- If your callback throws, it becomes a rejected Promise
+- If your callback throws, Go will panic (caught by error boundary)
 
 ### 6. Memory Considerations
 

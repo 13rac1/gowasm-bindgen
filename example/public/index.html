@@ -155,13 +155,7 @@
         <p class="hint">Doubles each number using Int32Array for efficient transfer</p>
     </div>
 
-    <div class="card">
-        <h2>forEach(items: string[], callback: (item, index) =&gt; void)</h2>
-        <input type="text" id="forEachInput" placeholder="Comma-separated items" value="apple, banana, cherry">
-        <button id="forEachBtn">Call forEach()</button>
-        <div class="result" id="forEachResult"></div>
-        <p class="hint">Passes a JavaScript callback to Go, which invokes it for each item</p>
-    </div>
+    <!-- Note: forEach with callback removed - callbacks require --sync mode -->
 
     <script src="wasm_exec.js"></script>
     <script src="app.js"></script>

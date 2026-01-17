@@ -364,7 +364,12 @@ func sliceReturn(t GoType, valueExpr string) string {
 		return byteSliceReturn(valueExpr)
 	}
 
-	// For other primitive element types, can return directly
+	// For typed array element types (int32, float64, etc.), create JS typed array
+	if jsTypedArray := goElemToTypedArray(t.Elem.Name); jsTypedArray != "" {
+		return typedArrayReturn(jsTypedArray, valueExpr)
+	}
+
+	// For other primitive element types (int, string, bool), return directly
 	if t.Elem.Kind == KindPrimitive {
 		return valueExpr
 	}
@@ -385,6 +390,19 @@ func sliceReturn(t GoType, valueExpr string) string {
 	b.WriteString("\t}()")
 
 	return b.String()
+}
+
+// typedArrayReturn generates return code for typed arrays (Int32Array, Float64Array, etc.).
+// Creates a JS typed array and copies elements one by one.
+func typedArrayReturn(jsTypedArray, valueExpr string) string {
+	return `func() js.Value {
+		slice := ` + valueExpr + `
+		arr := js.Global().Get("` + jsTypedArray + `").New(len(slice))
+		for i, v := range slice {
+			arr.SetIndex(i, v)
+		}
+		return arr
+	}()`
 }
 
 // byteSliceReturn generates return code for byte slices using js.CopyBytesToJS.

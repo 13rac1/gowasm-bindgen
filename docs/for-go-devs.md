@@ -197,9 +197,14 @@ func ProcessNumbers(nums []int32) []int32 {
 
 **Performance note**: Byte arrays (`[]byte`) use `js.CopyBytesToGo()` and `js.CopyBytesToJS()` for efficient bulk copying (~10-100x faster for large arrays). Other numeric types use element-by-element iteration.
 
-### Void Callbacks
+### Void Callbacks (Sync Mode Only)
 
-Functions can accept callback parameters (void only):
+Functions can accept callback parameters (void only), but **callbacks require `--sync` mode**:
+
+```bash
+# Callbacks require sync mode - Web Workers cannot serialize functions
+gowasm-bindgen --sync --output client.ts --go-output bindings_gen.go main.go
+```
 
 ```go
 // ForEach iterates over items and calls the callback for each
@@ -214,21 +219,24 @@ This generates:
 
 ```typescript
 class Main {
-    // callback parameter type is inferred
-    forEach(items: string[], callback: (arg0: string, arg1: number) => void): Promise<void>;
+    // callback parameter type is inferred (sync mode)
+    forEach(items: string[], callback: (arg0: string, arg1: number) => void): void;
 }
 
-// Usage:
-await wasm.forEach(["a", "b", "c"], (item, index) => {
+// Usage (sync mode - no await):
+wasm.forEach(["a", "b", "c"], (item, index) => {
     console.log(`${index}: ${item}`);
 });
 ```
 
+**Why sync mode only?** Web Workers use `postMessage()` which cannot serialize JavaScript functions. The generator will reject callbacks in worker mode with a clear error message.
+
 **Limitations:**
+- **Callbacks require `--sync` mode** (cannot work in worker mode)
 - Callbacks must have no return value (void)
 - Callbacks are called synchronously
 - No nested callbacks (callback taking callback)
-- If the TypeScript callback throws, it becomes a rejected Promise
+- If the TypeScript callback throws, Go will panic (caught by error boundary)
 
 **Not supported:**
 ```go

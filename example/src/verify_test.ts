@@ -56,7 +56,8 @@ void test("Generated types compile and match WASM signatures", async () => {
   // Verify Main class type structure
   // This is a compile-time check - if these type annotations compile,
   // the generated class has the correct method signatures
-  const mockWasm: Pick<Main, 'greet' | 'calculate' | 'formatUser' | 'sumNumbers' | 'validateEmail' | 'divide' | 'hashData' | 'processNumbers' | 'forEach' | 'terminate'> = {
+  // Note: forEach removed - callbacks require --sync mode (Web Workers can't serialize functions)
+  const mockWasm: Pick<Main, 'greet' | 'calculate' | 'formatUser' | 'sumNumbers' | 'validateEmail' | 'divide' | 'hashData' | 'processNumbers' | 'terminate'> = {
     greet: async (name: string): Promise<string> => `Hello, ${name}!`,
     calculate: async (a: number, b: number, op: string): Promise<number> => {
       switch (op) {
@@ -97,10 +98,6 @@ void test("Generated types compile and match WASM signatures", async () => {
     processNumbers: async (nums: Int32Array): Promise<Int32Array> => {
       // Double each number matching Go implementation
       return nums.map(n => n * 2);
-    },
-    forEach: async (items: string[], callback: (arg0: string, arg1: number) => void): Promise<void> => {
-      // Iterate and call callback for each item matching Go implementation
-      items.forEach((item, i) => callback(item, i));
     },
     terminate: (): void => {}
   };
@@ -180,20 +177,6 @@ void test("Generated types compile and match WASM signatures", async () => {
   assert.strictEqual(numsResult[3], 8);
   assert.strictEqual(numsResult[4], 10);
 
-  // Test forEach with callback
-  const collected: string[] = [];
-  const indices: number[] = [];
-  await mockWasm.forEach(["a", "b", "c"], (item, index) => {
-    collected.push(item);
-    indices.push(index);
-  });
-  assert.deepStrictEqual(collected, ["a", "b", "c"]);
-  assert.deepStrictEqual(indices, [0, 1, 2]);
-
-  // Test forEach with empty array (callback should not be called)
-  let callCount = 0;
-  await mockWasm.forEach([], () => {
-    callCount++;
-  });
-  assert.strictEqual(callCount, 0);
+  // Note: forEach tests removed - callbacks require --sync mode
+  // (Web Workers cannot serialize JavaScript functions via postMessage)
 });
