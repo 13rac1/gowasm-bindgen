@@ -128,27 +128,31 @@ func isByteSlice(t GoType) bool {
 
 // GoTypeToJSExtraction generates JavaScript code to extract a value from js.Value
 // argExpr is the expression representing the js.Value argument (e.g., "args[0]")
-func GoTypeToJSExtraction(t GoType, argExpr string) string {
+// workerMode determines whether to generate worker-compatible callback code
+func GoTypeToJSExtraction(t GoType, argExpr string, workerMode bool) string {
 	switch t.Kind {
 	case KindPrimitive:
 		return primitiveExtraction(t.Name, argExpr)
 
 	case KindSlice, KindArray:
-		return sliceExtraction(t, argExpr)
+		return sliceExtraction(t, argExpr, workerMode)
 
 	case KindMap:
-		return mapExtraction(t, argExpr)
+		return mapExtraction(t, argExpr, workerMode)
 
 	case KindStruct:
-		return structExtraction(t, argExpr)
+		return structExtraction(t, argExpr, workerMode)
 
 	case KindPointer:
 		if t.Elem != nil {
-			return GoTypeToJSExtraction(*t.Elem, argExpr)
+			return GoTypeToJSExtraction(*t.Elem, argExpr, workerMode)
 		}
 		return argExpr
 
 	case KindFunction:
+		if workerMode {
+			return workerCallbackCode(t, argExpr)
+		}
 		return callbackWrapperCode(t, argExpr)
 
 	default:
@@ -193,7 +197,7 @@ func primitiveExtraction(typeName, argExpr string) string {
 }
 
 // sliceExtraction generates extraction code for slices
-func sliceExtraction(t GoType, argExpr string) string {
+func sliceExtraction(t GoType, argExpr string, workerMode bool) string {
 	if t.Elem == nil {
 		return "nil"
 	}
@@ -218,7 +222,7 @@ func sliceExtraction(t GoType, argExpr string) string {
 	b.WriteString(", length)\n")
 	b.WriteString("\t\tfor i := 0; i < length; i++ {\n")
 	b.WriteString("\t\t\tresult[i] = ")
-	b.WriteString(GoTypeToJSExtraction(*elemType, argExpr+".Index(i)"))
+	b.WriteString(GoTypeToJSExtraction(*elemType, argExpr+".Index(i)", workerMode))
 	b.WriteString("\n\t\t}\n")
 	b.WriteString("\t\treturn result\n")
 	b.WriteString("\t}()")
@@ -238,7 +242,7 @@ func byteSliceExtraction(argExpr string) string {
 }
 
 // mapExtraction generates extraction code for maps
-func mapExtraction(t GoType, argExpr string) string {
+func mapExtraction(t GoType, argExpr string, workerMode bool) string {
 	if t.Key == nil || t.Value == nil {
 		return "nil"
 	}
@@ -261,7 +265,7 @@ func mapExtraction(t GoType, argExpr string) string {
 	b.WriteString("\t\tfor i := 0; i < keys.Length(); i++ {\n")
 	b.WriteString("\t\t\tkey := keys.Index(i).String()\n")
 	b.WriteString("\t\t\tresult[key] = ")
-	b.WriteString(GoTypeToJSExtraction(*t.Value, argExpr+".Get(key)"))
+	b.WriteString(GoTypeToJSExtraction(*t.Value, argExpr+".Get(key)", workerMode))
 	b.WriteString("\n\t\t}\n")
 	b.WriteString("\t\treturn result\n")
 	b.WriteString("\t}()")
@@ -270,7 +274,7 @@ func mapExtraction(t GoType, argExpr string) string {
 }
 
 // structExtraction generates extraction code for structs
-func structExtraction(t GoType, argExpr string) string {
+func structExtraction(t GoType, argExpr string, workerMode bool) string {
 	var b strings.Builder
 
 	b.WriteString("func() ")
@@ -289,7 +293,7 @@ func structExtraction(t GoType, argExpr string) string {
 		b.WriteString("\t\t\t")
 		b.WriteString(field.Name)
 		b.WriteString(": ")
-		b.WriteString(GoTypeToJSExtraction(field.Type, argExpr+".Get(\""+fieldKey+"\")"))
+		b.WriteString(GoTypeToJSExtraction(field.Type, argExpr+".Get(\""+fieldKey+"\")", workerMode))
 		b.WriteString(",\n")
 	}
 
@@ -299,7 +303,7 @@ func structExtraction(t GoType, argExpr string) string {
 	return b.String()
 }
 
-// callbackWrapperCode generates a Go function that invokes a JavaScript callback.
+// callbackWrapperCode generates sync-mode callback wrapper (direct JS function invocation).
 // If the JavaScript callback throws an error, it panics in Go, which is caught
 // by the WASM error boundary and returned to TypeScript as a rejected Promise.
 func callbackWrapperCode(t GoType, argExpr string) string {
@@ -315,6 +319,29 @@ func callbackWrapperCode(t GoType, argExpr string) string {
 
 	return "func(" + strings.Join(goParams, ", ") + ") { " +
 		argExpr + ".Invoke(" + strings.Join(jsArgs, ", ") + ") }"
+}
+
+// workerCallbackCode generates worker-mode callback wrapper (postMessage-based invocation).
+// The callback ID is passed as an integer, and arguments are marshaled to a JS array.
+// Panics if invokeCallback is not defined in the global scope (set by worker.js).
+// NOTE: Callbacks are only valid during the function's execution - they are unregistered
+// when the Go function returns, so callbacks must not be invoked from goroutines.
+func workerCallbackCode(t GoType, argExpr string) string {
+	var params, pushes strings.Builder
+
+	for i, p := range t.CallbackParams {
+		if i > 0 {
+			params.WriteString(", ")
+		}
+		fmt.Fprintf(&params, "arg%d %s", i, p.Name)
+		fmt.Fprintf(&pushes, "\t\tcbArgs.Call(\"push\", %s)\n",
+			GoTypeToJSReturn(p, fmt.Sprintf("arg%d", i)))
+	}
+
+	return fmt.Sprintf(`func(%s) {
+		cbArgs := js.Global().Get("Array").New()
+%s		js.Global().Call("invokeCallback", %s.Int(), cbArgs)
+	}`, params.String(), pushes.String(), argExpr)
 }
 
 // GoTypeToJSReturn generates JavaScript return conversion code

@@ -145,7 +145,7 @@ async function initWasm(): Promise<void> {
     getElement("divideBtn", HTMLButtonElement).addEventListener("click", runDivide);
     getElement("hashBtn", HTMLButtonElement).addEventListener("click", runHashData);
     getElement("processBtn", HTMLButtonElement).addEventListener("click", runProcessNumbers);
-    // Note: forEach with callback removed - callbacks require --sync mode
+    getElement("forEachBtn", HTMLButtonElement).addEventListener("click", runForEach);
   } catch (err: unknown) {
     // Handle initialization errors (network failure, invalid WASM, etc.)
     const statusElement = getOptionalElement("status", HTMLElement);
@@ -286,5 +286,25 @@ function runProcessNumbers(): void {
   });
 }
 
-// Note: runForEach removed - callbacks require --sync mode
-// Web Workers cannot serialize JavaScript functions via postMessage
+function runForEach(): void {
+  void withErrorHandlingAsync("forEachResult", async () => {
+    const input = getElement("forEachInput", HTMLInputElement);
+    const resultElement = getElement("forEachResult", HTMLElement);
+
+    // Parse comma-separated items
+    const items = input.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    if (items.length === 0) {
+      throw new Error("Please enter some items");
+    }
+
+    // Collect callback results
+    const outputs: string[] = [];
+
+    // Call Go function with callback - works in worker mode!
+    await wasm.forEach(items, (item: string, index: number) => {
+      outputs.push(`[${index}] ${item}`);
+    });
+
+    resultElement.textContent = outputs.join('\n');
+  });
+}

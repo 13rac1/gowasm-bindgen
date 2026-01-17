@@ -130,9 +130,14 @@ func ProcessNumbers(nums []int32) []int32 {
 	return result
 }
 
-// Note: ForEach with callback was removed because callbacks require --sync mode.
-// Web Workers cannot serialize JavaScript functions via postMessage.
-// See docs/for-go-devs.md for callback documentation.
+// ForEach iterates over items and calls callback for each item.
+// Demonstrates fire-and-forget void callbacks in worker mode.
+// The callback is invoked synchronously during ForEach execution.
+func ForEach(items []string, callback func(string, int)) {
+	for i, item := range items {
+		callback(item, i)
+	}
+}
 
 func main() {
 	// Keep the Go program running

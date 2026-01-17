@@ -13,8 +13,10 @@ import (
 // The TypeScript client checks for this field and throws it as a JavaScript Error.
 const ErrorFieldName = "__error"
 
-// GenerateGoBindings generates Go wrapper code for WASM export
-func GenerateGoBindings(parsed *parser.ParsedFile) string {
+// GenerateGoBindings generates Go wrapper code for WASM export.
+// workerMode determines whether callbacks use postMessage-based invocation (true)
+// or direct JS function invocation (false).
+func GenerateGoBindings(parsed *parser.ParsedFile, workerMode bool) string {
 	var b strings.Builder
 
 	// Header with build constraint for WASM-only compilation
@@ -37,7 +39,7 @@ func GenerateGoBindings(parsed *parser.ParsedFile) string {
 
 	// Generate wrapper for each function
 	for _, fn := range parsed.Functions {
-		b.WriteString(generateWrapperFunction(fn))
+		b.WriteString(generateWrapperFunction(fn, workerMode))
 		b.WriteString("\n\n")
 	}
 
@@ -45,7 +47,7 @@ func GenerateGoBindings(parsed *parser.ParsedFile) string {
 }
 
 // generateWrapperFunction generates a single WASM wrapper function
-func generateWrapperFunction(fn parser.GoFunction) string {
+func generateWrapperFunction(fn parser.GoFunction, workerMode bool) string {
 	var b strings.Builder
 
 	// Function signature
@@ -58,7 +60,7 @@ func generateWrapperFunction(fn parser.GoFunction) string {
 		b.WriteString("\t")
 		b.WriteString(param.Name)
 		b.WriteString(" := ")
-		b.WriteString(parser.GoTypeToJSExtraction(param.Type, fmt.Sprintf("args[%d]", i)))
+		b.WriteString(parser.GoTypeToJSExtraction(param.Type, fmt.Sprintf("args[%d]", i), workerMode))
 		b.WriteString("\n")
 	}
 

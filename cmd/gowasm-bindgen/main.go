@@ -78,9 +78,11 @@ func run() error {
 	}
 
 	// Generate Go bindings if requested
+	// workerMode is true when NOT using sync mode (default is worker mode)
 	if goOutput != "" {
 		fmt.Printf("\nGenerating Go bindings...\n")
-		bindingsCode := generator.GenerateGoBindings(parsed)
+		workerMode := !sync
+		bindingsCode := generator.GenerateGoBindings(parsed, workerMode)
 
 		if err := os.WriteFile(goOutput, []byte(bindingsCode), 0644); err != nil {
 			return fmt.Errorf("writing Go bindings: %w", err)
@@ -118,13 +120,6 @@ func generateSyncOutput(parsed *parser.ParsedFile, output string) error {
 }
 
 func generateWorkerOutput(parsed *parser.ParsedFile, output string) error {
-	// Check for callbacks - they cannot work in worker mode
-	if funcs := functionsWithCallbacks(parsed); len(funcs) > 0 {
-		return fmt.Errorf("function %q has callback parameter which cannot work in Worker mode.\n"+
-			"Callbacks require --sync mode because Web Workers cannot serialize functions.\n\n"+
-			"To use callbacks, regenerate with: gowasm-bindgen --sync --output %s ...", funcs[0], output)
-	}
-
 	outputDir := filepath.Dir(output)
 
 	// Generate worker.js
@@ -166,18 +161,4 @@ func lowerFirst(s string) string {
 		return ""
 	}
 	return strings.ToLower(s[:1]) + s[1:]
-}
-
-// functionsWithCallbacks returns names of functions that have callback parameters
-func functionsWithCallbacks(parsed *parser.ParsedFile) []string {
-	var funcs []string
-	for _, fn := range parsed.Functions {
-		for _, param := range fn.Params {
-			if param.Type.Kind == parser.KindFunction {
-				funcs = append(funcs, fn.Name)
-				break
-			}
-		}
-	}
-	return funcs
 }

@@ -197,17 +197,13 @@ func ProcessNumbers(nums []int32) []int32 {
 
 **Performance note**: Byte arrays (`[]byte`) use `js.CopyBytesToGo()` and `js.CopyBytesToJS()` for efficient bulk copying (~10-100x faster for large arrays). Other numeric types use element-by-element iteration.
 
-### Void Callbacks (Sync Mode Only)
+### Void Callbacks
 
-Functions can accept callback parameters (void only), but **callbacks require `--sync` mode**:
-
-```bash
-# Callbacks require sync mode - Web Workers cannot serialize functions
-gowasm-bindgen --sync --output client.ts --go-output bindings_gen.go main.go
-```
+Functions can accept callback parameters (void only). Callbacks work in both worker and sync modes:
 
 ```go
-// ForEach iterates over items and calls the callback for each
+// ForEach iterates over items and calls the callback for each.
+// The callback is invoked synchronously during ForEach execution.
 func ForEach(items []string, callback func(string, int)) {
     for i, item := range items {
         callback(item, i)
@@ -219,24 +215,26 @@ This generates:
 
 ```typescript
 class Main {
-    // callback parameter type is inferred (sync mode)
-    forEach(items: string[], callback: (arg0: string, arg1: number) => void): void;
+    // callback parameter type is inferred
+    forEach(items: string[], callback: (arg0: string, arg1: number) => void): Promise<void>;
 }
 
-// Usage (sync mode - no await):
-wasm.forEach(["a", "b", "c"], (item, index) => {
+// Usage (worker mode - async):
+await wasm.forEach(["a", "b", "c"], (item, index) => {
     console.log(`${index}: ${item}`);
 });
 ```
 
-**Why sync mode only?** Web Workers use `postMessage()` which cannot serialize JavaScript functions. The generator will reject callbacks in worker mode with a clear error message.
+**Worker mode (default):** Uses fire-and-forget message passing. Go invokes callbacks by posting messages to the main thread. The UI stays responsive, and callbacks are executed asynchronously.
+
+**Sync mode:** Callbacks are invoked directly and synchronously.
 
 **Limitations:**
-- **Callbacks require `--sync` mode** (cannot work in worker mode)
 - Callbacks must have no return value (void)
-- Callbacks are called synchronously
+- Callbacks are only valid during the Go function's execution (do not store for later use)
 - No nested callbacks (callback taking callback)
-- If the TypeScript callback throws, Go will panic (caught by error boundary)
+- In worker mode, callback errors are logged to console but cannot propagate back to Go
+- In sync mode, if the callback throws, Go will panic (caught by error boundary)
 
 **Not supported:**
 ```go

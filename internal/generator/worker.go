@@ -23,6 +23,12 @@ importScripts('wasm_exec.js');
 const go = new Go();
 let wasmReady = false;
 
+// Global for Go to invoke callbacks (fire-and-forget)
+// Go calls this to relay callback invocations to the main thread
+self.invokeCallback = function(callbackId, args) {
+  self.postMessage({ type: 'invokeCallback', callbackId: callbackId, args: args });
+};
+
 // Initialize WASM
 fetch('example.wasm')
   .then(response => WebAssembly.instantiateStreaming(response, go.importObject))
@@ -79,7 +85,9 @@ func GenerateClient(parsed *parser.ParsedFile) string {
 	b.WriteString(" {\n")
 	b.WriteString("  private worker: Worker;\n")
 	b.WriteString("  private requestId = 0;\n")
-	b.WriteString("  private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();\n\n")
+	b.WriteString("  private pending = new Map<number, { resolve: (v: unknown) => void; reject: (e: Error) => void }>();\n")
+	b.WriteString("  private nextCallbackId = 0;\n")
+	b.WriteString("  private callbacks = new Map<number, (...args: unknown[]) => void>();\n\n")
 
 	b.WriteString("  private constructor(worker: Worker) {\n")
 	b.WriteString("    this.worker = worker;\n")
@@ -96,9 +104,18 @@ func GenerateClient(parsed *parser.ParsedFile) string {
 
 	b.WriteString("    await new Promise<void>((resolve, reject) => {\n")
 	b.WriteString("      worker.onmessage = (event) => {\n")
-	b.WriteString("        const { type, id, result, error } = event.data;\n")
+	b.WriteString("        const { type, id, result, error, callbackId, args } = event.data;\n")
 	b.WriteString("        if (type === 'ready') {\n")
 	b.WriteString("          resolve();\n")
+	b.WriteString("          return;\n")
+	b.WriteString("        }\n")
+	b.WriteString("        // Handle callback invocations from Go\n")
+	b.WriteString("        if (type === 'invokeCallback') {\n")
+	b.WriteString("          const callback = instance.callbacks.get(callbackId);\n")
+	b.WriteString("          if (callback) {\n")
+	b.WriteString("            try { callback(...args); }\n")
+	b.WriteString("            catch (e) { console.error('Callback error:', e); }\n")
+	b.WriteString("          }\n")
 	b.WriteString("          return;\n")
 	b.WriteString("        }\n")
 	b.WriteString("        const handler = instance.pending.get(id);\n")
@@ -137,6 +154,13 @@ func GenerateClient(parsed *parser.ParsedFile) string {
 	b.WriteString("      this.pending.set(id, { resolve: resolve as (v: unknown) => void, reject });\n")
 	b.WriteString("      this.worker.postMessage({ id, fn, args });\n")
 	b.WriteString("    });\n")
+	b.WriteString("  }\n\n")
+
+	// Private registerCallback method
+	b.WriteString("  private registerCallback(fn: (...args: unknown[]) => void): number {\n")
+	b.WriteString("    const id = ++this.nextCallbackId;\n")
+	b.WriteString("    this.callbacks.set(id, fn);\n")
+	b.WriteString("    return id;\n")
 	b.WriteString("  }\n")
 
 	// Instance methods
@@ -169,6 +193,15 @@ func GenerateWorkerClassMethod(fn parser.GoFunction) string {
 	returnType := determineReturnType(fn)
 	funcName := lowerFirst(fn.Name)
 
+	// Check if any parameters are callbacks
+	var callbackParams []int
+	for i, p := range fn.Params {
+		if p.Type.Kind == parser.KindFunction {
+			callbackParams = append(callbackParams, i)
+		}
+	}
+	hasCallbacks := len(callbackParams) > 0
+
 	b.WriteString("  ")
 	b.WriteString(funcName)
 	b.WriteString("(")
@@ -176,20 +209,60 @@ func GenerateWorkerClassMethod(fn parser.GoFunction) string {
 	b.WriteString("): Promise<")
 	b.WriteString(returnType)
 	b.WriteString("> {\n")
-	b.WriteString("    return this.call<")
-	b.WriteString(returnType)
-	b.WriteString(">(\"")
-	b.WriteString(funcName)
-	b.WriteString("\", [")
 
-	// Generate argument list
-	argNames := make([]string, len(fn.Params))
-	for i, p := range fn.Params {
-		argNames[i] = p.Name
+	if hasCallbacks {
+		// Register callbacks and get their IDs
+		// Cast to unknown[] => void since registerCallback uses a generic signature
+		for _, idx := range callbackParams {
+			paramName := fn.Params[idx].Name
+			b.WriteString(fmt.Sprintf("    const %sId = this.registerCallback(%s as (...args: unknown[]) => void);\n", paramName, paramName))
+		}
+
+		// Build the call with .finally() for cleanup
+		b.WriteString("    return this.call<")
+		b.WriteString(returnType)
+		b.WriteString(">(\"")
+		b.WriteString(funcName)
+		b.WriteString("\", [")
+
+		// Generate argument list, replacing callbacks with their IDs
+		argNames := make([]string, len(fn.Params))
+		for i, p := range fn.Params {
+			if p.Type.Kind == parser.KindFunction {
+				argNames[i] = p.Name + "Id"
+			} else {
+				argNames[i] = p.Name
+			}
+		}
+		b.WriteString(strings.Join(argNames, ", "))
+
+		b.WriteString("]).finally(() => {\n")
+
+		// Clean up all registered callbacks
+		for _, idx := range callbackParams {
+			paramName := fn.Params[idx].Name
+			b.WriteString(fmt.Sprintf("      this.callbacks.delete(%sId);\n", paramName))
+		}
+
+		b.WriteString("    });\n")
+	} else {
+		// No callbacks - simple call
+		b.WriteString("    return this.call<")
+		b.WriteString(returnType)
+		b.WriteString(">(\"")
+		b.WriteString(funcName)
+		b.WriteString("\", [")
+
+		// Generate argument list
+		argNames := make([]string, len(fn.Params))
+		for i, p := range fn.Params {
+			argNames[i] = p.Name
+		}
+		b.WriteString(strings.Join(argNames, ", "))
+
+		b.WriteString("]);\n")
 	}
-	b.WriteString(strings.Join(argNames, ", "))
 
-	b.WriteString("]);\n")
 	b.WriteString("  }\n")
 
 	return b.String()
