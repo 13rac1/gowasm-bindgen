@@ -171,16 +171,46 @@ func TestGreet(t *testing.T) {
 
 These are normal unit tests - no `js.Value` required!
 
+### Typed Arrays
+
+Go byte and numeric slices map to TypeScript typed arrays:
+
+```go
+// HashData processes binary data efficiently
+func HashData(data []byte) []byte {
+    hash := make([]byte, 4)
+    for i, b := range data {
+        hash[i%4] ^= b
+    }
+    return hash
+}
+
+// ProcessNumbers works with 32-bit integers
+func ProcessNumbers(nums []int32) []int32 {
+    result := make([]int32, len(nums))
+    for i, n := range nums {
+        result[i] = n * 2
+    }
+    return result
+}
+```
+
+**Performance note**: Byte arrays (`[]byte`) use `js.CopyBytesToGo()` and `js.CopyBytesToJS()` for efficient bulk copying (~10-100x faster for large arrays). Other numeric types use element-by-element iteration.
+
 ## Type Mapping
 
 | Go Type | TypeScript Type |
 |---------|-----------------|
 | `string` | `string` |
-| `int`, `int8`, `int16`, `int32`, `int64` | `number` |
-| `uint`, `uint8`, `uint16`, `uint32`, `uint64` | `number` |
+| `int`, `int64` | `number` |
 | `float32`, `float64` | `number` |
 | `bool` | `boolean` |
-| `[]T` | `T[]` |
+| `[]byte`, `[]uint8` | `Uint8Array` |
+| `[]int8` | `Int8Array` |
+| `[]int16`, `[]uint16` | `Int16Array`, `Uint16Array` |
+| `[]int32`, `[]uint32` | `Int32Array`, `Uint32Array` |
+| `[]float32`, `[]float64` | `Float32Array`, `Float64Array` |
+| `[]T` (other) | `T[]` |
 | `map[string]T` | `{[key: string]: T}` |
 | Unknown | `any` |
 

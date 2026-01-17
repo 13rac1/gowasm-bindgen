@@ -326,9 +326,19 @@ func TestGoTypeToTS(t *testing.T) {
 		{"int64", GoType{Name: "int64", Kind: KindPrimitive}, "number"},
 		{"float64", GoType{Name: "float64", Kind: KindPrimitive}, "number"},
 		{"bool", GoType{Name: "bool", Kind: KindPrimitive}, "boolean"},
-		{"byte slice", GoType{Name: "[]byte", Kind: KindSlice, Elem: &GoType{Name: "byte", Kind: KindPrimitive}}, "number[]"},
-		{"string slice", GoType{Name: "[]string", Kind: KindSlice, Elem: &GoType{Name: "string", Kind: KindPrimitive}}, "string[]"},
+		// Typed arrays
+		{"byte slice", GoType{Name: "[]byte", Kind: KindSlice, Elem: &GoType{Name: "byte", Kind: KindPrimitive}}, "Uint8Array"},
+		{"uint8 slice", GoType{Name: "[]uint8", Kind: KindSlice, Elem: &GoType{Name: "uint8", Kind: KindPrimitive}}, "Uint8Array"},
+		{"int8 slice", GoType{Name: "[]int8", Kind: KindSlice, Elem: &GoType{Name: "int8", Kind: KindPrimitive}}, "Int8Array"},
+		{"int16 slice", GoType{Name: "[]int16", Kind: KindSlice, Elem: &GoType{Name: "int16", Kind: KindPrimitive}}, "Int16Array"},
+		{"int32 slice", GoType{Name: "[]int32", Kind: KindSlice, Elem: &GoType{Name: "int32", Kind: KindPrimitive}}, "Int32Array"},
+		{"uint16 slice", GoType{Name: "[]uint16", Kind: KindSlice, Elem: &GoType{Name: "uint16", Kind: KindPrimitive}}, "Uint16Array"},
+		{"uint32 slice", GoType{Name: "[]uint32", Kind: KindSlice, Elem: &GoType{Name: "uint32", Kind: KindPrimitive}}, "Uint32Array"},
+		{"float32 slice", GoType{Name: "[]float32", Kind: KindSlice, Elem: &GoType{Name: "float32", Kind: KindPrimitive}}, "Float32Array"},
+		{"float64 slice", GoType{Name: "[]float64", Kind: KindSlice, Elem: &GoType{Name: "float64", Kind: KindPrimitive}}, "Float64Array"},
+		// Non-typed arrays (no bulk copy available)
 		{"int slice", GoType{Name: "[]int", Kind: KindSlice, Elem: &GoType{Name: "int", Kind: KindPrimitive}}, "number[]"},
+		{"string slice", GoType{Name: "[]string", Kind: KindSlice, Elem: &GoType{Name: "string", Kind: KindPrimitive}}, "string[]"},
 		{"string map", GoType{Name: "map[string]int", Kind: KindMap, Key: &GoType{Name: "string"}, Value: &GoType{Name: "int", Kind: KindPrimitive}}, "{[key: string]: number}"},
 		{"error", GoType{Name: "error", Kind: KindError, IsError: true}, "string"},
 	}

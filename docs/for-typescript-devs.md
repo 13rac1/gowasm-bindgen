@@ -236,9 +236,30 @@ const user = await wasm.formatUser("Alice", 30, true);
 
 **Solution:** Regenerate types when Go code changes, and keep tests in sync.
 
-### 4. Memory Considerations
+### 4. Working with Binary Data (Typed Arrays)
 
-Each call to a WASM function copies data between JavaScript and Go:
+Go `[]byte` functions accept and return `Uint8Array`:
+
+```typescript
+// Byte arrays use efficient bulk copy (~10-100x faster for large data)
+const data = new Uint8Array([1, 2, 3, 4, 5]);
+const hash = await wasm.hashData(data);  // Returns Uint8Array
+
+// Other typed arrays also work
+const nums = new Int32Array([1, 2, 3, 4, 5]);
+const doubled = await wasm.processNumbers(nums);  // Returns Int32Array
+```
+
+| Go Type | TypeScript Type |
+|---------|-----------------|
+| `[]byte`, `[]uint8` | `Uint8Array` |
+| `[]int8` | `Int8Array` |
+| `[]int32` | `Int32Array` |
+| `[]float64` | `Float64Array` |
+
+### 5. Memory Considerations
+
+Byte arrays use efficient bulk copy. For other data, consider batching:
 
 ```typescript
 // ❌ Slow - copying large data on every call
@@ -246,11 +267,14 @@ for (const item of hugeArray) {
   await wasm.processItem(item);
 }
 
-// ✅ Better - batch if possible
+// ✅ Better - batch if possible or use typed arrays
 await wasm.processItems(hugeArray.join(","));
+// Or with typed arrays (fastest for numeric data):
+const typedArray = new Int32Array(hugeArray);
+await wasm.processNumbers(typedArray);
 ```
 
-### 5. Debugging WASM Functions
+### 6. Debugging WASM Functions
 
 TypeScript debuggers can't step into WASM code. Use logging:
 
@@ -266,7 +290,7 @@ In Go code, you can log to the browser console:
 js.Global().Get("console").Call("log", "Debug from Go:", value)
 ```
 
-### 6. The `void` Operator Pattern
+### 7. The `void` Operator Pattern
 
 You'll see `void` in our examples:
 

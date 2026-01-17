@@ -199,3 +199,57 @@ func TestDivide(t *testing.T) {
 		})
 	}
 }
+
+func TestHashData(t *testing.T) {
+	tests := []struct {
+		name string
+		data []byte
+		want []byte
+	}{
+		{name: "empty", data: []byte{}, want: []byte{0, 0, 0, 0}},
+		{name: "single_byte", data: []byte{0xFF}, want: []byte{0xFF, 0, 0, 0}},
+		{name: "four_bytes", data: []byte{1, 2, 3, 4}, want: []byte{1, 2, 3, 4}},
+		{name: "xor_wraps", data: []byte{1, 2, 3, 4, 5, 6, 7, 8}, want: []byte{1 ^ 5, 2 ^ 6, 3 ^ 7, 4 ^ 8}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := HashData(tt.data)
+			if len(got) != len(tt.want) {
+				t.Fatalf("HashData() returned %d bytes, want %d", len(got), len(tt.want))
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("HashData()[%d] = %d, want %d", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}
+
+func TestProcessNumbers(t *testing.T) {
+	tests := []struct {
+		name string
+		nums []int32
+		want []int32
+	}{
+		{name: "empty", nums: []int32{}, want: []int32{}},
+		{name: "single", nums: []int32{5}, want: []int32{10}},
+		{name: "multiple", nums: []int32{1, 2, 3, 4, 5}, want: []int32{2, 4, 6, 8, 10}},
+		{name: "negative", nums: []int32{-5, -10}, want: []int32{-10, -20}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := ProcessNumbers(tt.nums)
+			if len(got) != len(tt.want) {
+				t.Fatalf("ProcessNumbers() returned %d elements, want %d", len(got), len(tt.want))
+			}
+			for i := range got {
+				if got[i] != tt.want[i] {
+					t.Errorf("ProcessNumbers()[%d] = %d, want %d", i, got[i], tt.want[i])
+				}
+			}
+		})
+	}
+}

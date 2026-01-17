@@ -110,6 +110,26 @@ func Divide(a, b int) (int, error) {
 	return a / b, nil
 }
 
+// HashData computes a simple XOR-based hash of byte data.
+// Demonstrates efficient Uint8Array handling via js.CopyBytesToGo/JS.
+func HashData(data []byte) []byte {
+	hash := make([]byte, 4)
+	for i, b := range data {
+		hash[i%4] ^= b
+	}
+	return hash
+}
+
+// ProcessNumbers doubles each number in the input array.
+// Demonstrates typed array support for int32 slices (Int32Array).
+func ProcessNumbers(nums []int32) []int32 {
+	result := make([]int32, len(nums))
+	for i, n := range nums {
+		result[i] = n * 2
+	}
+	return result
+}
+
 func main() {
 	// Keep the Go program running
 	// bindings_gen.go will handle all WASM function registrations

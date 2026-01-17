@@ -8,6 +8,7 @@ gowasm-bindgen generates TypeScript declarations from Go source code. This docum
 ✅ **Direct type inference** - Types inferred from function signatures
 ✅ **Automatic bindings generation** - No manual `js.Global().Set()` calls
 ✅ **Automatic error throwing** - Go `(T, error)` returns automatically throw in TypeScript
+✅ **Typed arrays** - Go `[]byte` maps to TypeScript `Uint8Array` with efficient bulk copy
 
 ## Current Limitations
 
@@ -34,19 +35,36 @@ const wasm = await Wasm.init('./example.wasm');
 const result = wasm.heavyComputation(data);  // UI frozen!
 ```
 
-### No Typed Arrays
+### Typed Arrays
 
-Array parameters require string serialization:
+Go numeric slices map to TypeScript typed arrays:
 
-```typescript
-// Current: manual serialization
-const sum = await wasm.sumNumbers("1,2,3,4,5");
+| Go Type | TypeScript Type | Performance |
+|---------|-----------------|-------------|
+| `[]byte` / `[]uint8` | `Uint8Array` | Bulk copy (~10-100x faster) |
+| `[]int8` | `Int8Array` | Element iteration |
+| `[]int16` / `[]uint16` | `Int16Array` / `Uint16Array` | Element iteration |
+| `[]int32` / `[]uint32` | `Int32Array` / `Uint32Array` | Element iteration |
+| `[]float32` / `[]float64` | `Float32Array` / `Float64Array` | Element iteration |
 
-// Ideal: native arrays
-const sum = await wasm.sumNumbers([1, 2, 3, 4, 5]);
+```go
+// Go function with typed arrays
+func HashData(data []byte) []byte {
+    hash := make([]byte, 4)
+    for i, b := range data {
+        hash[i%4] ^= b
+    }
+    return hash
+}
 ```
 
-Go supports typed arrays via `js.CopyBytesToGo()`, but gowasm-bindgen doesn't detect this pattern yet.
+```typescript
+// TypeScript usage - native Uint8Array
+const data = new Uint8Array([1, 2, 3, 4, 5]);
+const hash = await wasm.hashData(data);  // Returns Uint8Array
+```
+
+**Performance note**: Byte arrays (`[]byte`) use `js.CopyBytesToGo()` and `js.CopyBytesToJS()` for efficient bulk copying. Other numeric types use element-by-element iteration since Go WASM doesn't provide bulk copy for non-byte types.
 
 ### No Callbacks
 
@@ -123,7 +141,7 @@ Rust has `wasm-pack` for a complete workflow. gowasm-bindgen is just the type ge
 | TypeScript generation | ✅ | ✅ |
 | Primitives | ✅ | ✅ |
 | Structs | ✅ Classes with methods | ✅ Interfaces |
-| Typed arrays | ✅ | ❌ |
+| Typed arrays | ✅ | ✅ (bytes bulk copy, others element iteration) |
 | Closures/callbacks | ✅ | ❌ |
 | Promises/async | ✅ | ✅ (default) |
 | Error handling | ✅ Result<T,E> throws | ✅ (T, error) throws |
@@ -148,7 +166,7 @@ Potential improvements (contributions welcome):
 - [x] Source-based type inference (no tests required)
 - [x] Automatic Go bindings generation
 - [x] Automatic error throwing for `(T, error)` returns
-- [ ] Typed array detection and generation
+- [x] Typed array detection and generation
 - [ ] `wasm-pack`-style CLI for complete workflow
 - [ ] Callback/closure support via `js.FuncOf()` detection
 

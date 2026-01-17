@@ -12,6 +12,11 @@ func GoTypeToTS(t GoType) string {
 		return primitiveToTS(t.Name)
 
 	case KindSlice, KindArray:
+		if t.Elem != nil && t.Elem.Kind == KindPrimitive {
+			if tsType := goElemToTypedArray(t.Elem.Name); tsType != "" {
+				return tsType
+			}
+		}
 		if t.Elem != nil {
 			return GoTypeToTS(*t.Elem) + "[]"
 		}
@@ -79,6 +84,38 @@ func primitiveToTS(name string) string {
 	default:
 		return "any"
 	}
+}
+
+// goElemToTypedArray maps Go slice element types to TypeScript typed array names.
+// Returns empty string if the element type doesn't map to a typed array.
+func goElemToTypedArray(elemName string) string {
+	switch elemName {
+	case "byte", "uint8":
+		return "Uint8Array"
+	case "int8":
+		return "Int8Array"
+	case "int16":
+		return "Int16Array"
+	case "int32":
+		return "Int32Array"
+	case "uint16":
+		return "Uint16Array"
+	case "uint32":
+		return "Uint32Array"
+	case "float32":
+		return "Float32Array"
+	case "float64":
+		return "Float64Array"
+	}
+	return ""
+}
+
+// isByteSlice returns true if the type is []byte or []uint8.
+func isByteSlice(t GoType) bool {
+	if t.Kind != KindSlice || t.Elem == nil {
+		return false
+	}
+	return t.Elem.Kind == KindPrimitive && (t.Elem.Name == "byte" || t.Elem.Name == "uint8")
 }
 
 // GoTypeToJSExtraction generates JavaScript code to extract a value from js.Value
@@ -150,6 +187,12 @@ func sliceExtraction(t GoType, argExpr string) string {
 		return "nil"
 	}
 
+	// Use js.CopyBytesToGo for byte slices (efficient bulk copy)
+	if isByteSlice(t) {
+		return byteSliceExtraction(argExpr)
+	}
+
+	// Element-by-element extraction for other types
 	elemType := t.Elem
 	var b strings.Builder
 
@@ -170,6 +213,17 @@ func sliceExtraction(t GoType, argExpr string) string {
 	b.WriteString("\t}()")
 
 	return b.String()
+}
+
+// byteSliceExtraction generates extraction code for byte slices using js.CopyBytesToGo.
+// This is ~10-100x faster than element-by-element extraction for large arrays.
+func byteSliceExtraction(argExpr string) string {
+	return `func() []byte {
+		length := ` + argExpr + `.Length()
+		result := make([]byte, length)
+		js.CopyBytesToGo(result, ` + argExpr + `)
+		return result
+	}()`
 }
 
 // mapExtraction generates extraction code for maps
@@ -276,7 +330,12 @@ func sliceReturn(t GoType, valueExpr string) string {
 		return "nil"
 	}
 
-	// For primitive element types, can return directly
+	// Use js.CopyBytesToJS for byte slices (efficient bulk copy)
+	if isByteSlice(t) {
+		return byteSliceReturn(valueExpr)
+	}
+
+	// For other primitive element types, can return directly
 	if t.Elem.Kind == KindPrimitive {
 		return valueExpr
 	}
@@ -297,6 +356,16 @@ func sliceReturn(t GoType, valueExpr string) string {
 	b.WriteString("\t}()")
 
 	return b.String()
+}
+
+// byteSliceReturn generates return code for byte slices using js.CopyBytesToJS.
+// This is ~10-100x faster than returning a Go slice directly for large arrays.
+func byteSliceReturn(valueExpr string) string {
+	return `func() js.Value {
+		arr := js.Global().Get("Uint8Array").New(len(` + valueExpr + `))
+		js.CopyBytesToJS(arr, ` + valueExpr + `)
+		return arr
+	}()`
 }
 
 // mapReturn generates return conversion for maps
