@@ -142,6 +142,10 @@ async function initWasm(): Promise<void> {
     getElement("formatBtn", HTMLButtonElement).addEventListener("click", runFormatUser);
     getElement("sumBtn", HTMLButtonElement).addEventListener("click", runSumNumbers);
     getElement("emailBtn", HTMLButtonElement).addEventListener("click", runValidateEmail);
+    getElement("divideBtn", HTMLButtonElement).addEventListener("click", runDivide);
+    getElement("hashBtn", HTMLButtonElement).addEventListener("click", runHashData);
+    getElement("processBtn", HTMLButtonElement).addEventListener("click", runProcessNumbers);
+    getElement("forEachBtn", HTMLButtonElement).addEventListener("click", runForEach);
   } catch (err: unknown) {
     // Handle initialization errors (network failure, invalid WASM, etc.)
     const statusElement = getOptionalElement("status", HTMLElement);
@@ -223,5 +227,78 @@ function runValidateEmail(): void {
 
     const result = await wasm.validateEmail(emailInput.value);
     resultElement.textContent = JSON.stringify(result, null, 2);
+  });
+}
+
+function runDivide(): void {
+  void withErrorHandlingAsync("divideResult", async () => {
+    const aInput = getElement("divideA", HTMLInputElement);
+    const bInput = getElement("divideB", HTMLInputElement);
+    const resultElement = getElement("divideResult", HTMLElement);
+
+    const a = parseInt(aInput.value, 10);
+    const b = parseInt(bInput.value, 10);
+    if (Number.isNaN(a) || Number.isNaN(b)) {
+      throw new Error("Please enter valid numbers");
+    }
+
+    // Go (T, error) automatically throws in TypeScript
+    const result = await wasm.divide(a, b);
+    resultElement.textContent = `${a} / ${b} = ${result}`;
+  });
+}
+
+function runHashData(): void {
+  void withErrorHandlingAsync("hashResult", async () => {
+    const input = getElement("hashInput", HTMLInputElement);
+    const resultElement = getElement("hashResult", HTMLElement);
+
+    // Convert string to Uint8Array
+    const encoder = new TextEncoder();
+    const data = encoder.encode(input.value);
+
+    // Call Go function with Uint8Array
+    const hash = await wasm.hashData(data);
+
+    // Display result
+    const hexHash = Array.from(hash).map(b => b.toString(16).padStart(2, '0')).join('');
+    resultElement.textContent = `Input: ${data.length} bytes -> Hash: 0x${hexHash} (${hash.length} bytes)`;
+  });
+}
+
+function runProcessNumbers(): void {
+  void withErrorHandlingAsync("processResult", async () => {
+    const input = getElement("processInput", HTMLInputElement);
+    const resultElement = getElement("processResult", HTMLElement);
+
+    // Parse comma-separated numbers into Int32Array
+    const numbers = input.value.split(',').map(s => parseInt(s.trim(), 10));
+    if (numbers.some(Number.isNaN)) {
+      throw new Error("Please enter valid numbers");
+    }
+    const int32Input = new Int32Array(numbers);
+
+    // Call Go function with Int32Array
+    const result = await wasm.processNumbers(int32Input);
+
+    // Display result
+    resultElement.textContent = `Input: [${Array.from(int32Input).join(', ')}] -> Output: [${Array.from(result).join(', ')}]`;
+  });
+}
+
+function runForEach(): void {
+  void withErrorHandlingAsync("forEachResult", async () => {
+    const input = getElement("forEachInput", HTMLInputElement);
+    const resultElement = getElement("forEachResult", HTMLElement);
+
+    const items = input.value.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    const collected: string[] = [];
+
+    // Pass a JavaScript callback to Go
+    await wasm.forEach(items, (item: string, index: number) => {
+      collected.push(`[${index}] ${item}`);
+    });
+
+    resultElement.textContent = `Callback invoked ${collected.length} times:\n${collected.join('\n')}`;
   });
 }

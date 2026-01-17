@@ -66,6 +66,19 @@
             background: #f8d7da;
             color: #721c24;
         }
+        .hint {
+            font-size: 12px;
+            color: #666;
+            margin-top: 8px;
+        }
+        .tag {
+            font-size: 12px;
+            background: #ff6b6b;
+            color: white;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: normal;
+        }
     </style>
 </head>
 <body>
@@ -115,6 +128,39 @@
         <input type="text" id="emailInput" placeholder="Enter email" value="user@example.com">
         <button id="emailBtn">Call validateEmail()</button>
         <div class="result" id="emailResult"></div>
+    </div>
+
+    <div class="card">
+        <h2>divide(a: number, b: number): number <span class="tag">throws on error</span></h2>
+        <input type="number" id="divideA" placeholder="a" value="10" style="width: 60px">
+        <input type="number" id="divideB" placeholder="b" value="2" style="width: 60px">
+        <button id="divideBtn">Call divide()</button>
+        <div class="result" id="divideResult"></div>
+        <p class="hint">Try dividing by 0 to see automatic error throwing</p>
+    </div>
+
+    <div class="card">
+        <h2>hashData(data: Uint8Array): Uint8Array</h2>
+        <input type="text" id="hashInput" placeholder="Text to hash" value="Hello, WASM!">
+        <button id="hashBtn">Call hashData()</button>
+        <div class="result" id="hashResult"></div>
+        <p class="hint">Converts text to bytes, computes XOR hash, returns Uint8Array</p>
+    </div>
+
+    <div class="card">
+        <h2>processNumbers(nums: Int32Array): Int32Array</h2>
+        <input type="text" id="processInput" placeholder="Comma-separated numbers" value="1, 2, 3, 4, 5">
+        <button id="processBtn">Call processNumbers()</button>
+        <div class="result" id="processResult"></div>
+        <p class="hint">Doubles each number using Int32Array for efficient transfer</p>
+    </div>
+
+    <div class="card">
+        <h2>forEach(items: string[], callback: (item, index) =&gt; void)</h2>
+        <input type="text" id="forEachInput" placeholder="Comma-separated items" value="apple, banana, cherry">
+        <button id="forEachBtn">Call forEach()</button>
+        <div class="result" id="forEachResult"></div>
+        <p class="hint">Passes a JavaScript callback to Go, which invokes it for each item</p>
     </div>
 
     <script src="wasm_exec.js"></script>

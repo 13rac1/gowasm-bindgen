@@ -88,24 +88,19 @@ void test("Generated types compile and match WASM signatures", async () => {
     hashData: async (data: Uint8Array): Promise<Uint8Array> => {
       // Simple XOR-based hash matching Go implementation
       const hash = new Uint8Array(4);
-      for (let i = 0; i < data.length; i++) {
-        hash[i % 4] ^= data[i];
-      }
+      data.forEach((byte, i) => {
+        const idx = i % 4;
+        hash[idx] = (hash[idx] ?? 0) ^ byte;
+      });
       return hash;
     },
     processNumbers: async (nums: Int32Array): Promise<Int32Array> => {
       // Double each number matching Go implementation
-      const result = new Int32Array(nums.length);
-      for (let i = 0; i < nums.length; i++) {
-        result[i] = nums[i] * 2;
-      }
-      return result;
+      return nums.map(n => n * 2);
     },
     forEach: async (items: string[], callback: (arg0: string, arg1: number) => void): Promise<void> => {
       // Iterate and call callback for each item matching Go implementation
-      for (let i = 0; i < items.length; i++) {
-        callback(items[i], i);
-      }
+      items.forEach((item, i) => callback(item, i));
     },
     terminate: (): void => {}
   };
