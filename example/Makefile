@@ -1,4 +1,4 @@
-.PHONY: all build generate generate-sync typecheck verify serve clean setup format lint check dist
+.PHONY: all build test generate generate-sync typecheck verify serve clean setup format lint check dist
 
 # Directories
 GO_SRC := go
@@ -8,7 +8,11 @@ PUBLIC := public
 DIST := dist
 
 # Build WASM, generate types, and verify
-all: setup generate build typecheck verify dist
+all: test setup generate build typecheck verify dist
+
+# Run Go unit tests
+test:
+	go test -v ./$(GO_SRC)/...
 
 # Copy wasm_exec.js from TinyGo installation
 setup:
@@ -76,9 +80,10 @@ serve: all
 format:
 	gofmt -w $(GO_SRC)/
 
-# Lint code (requires WASM build tags for syscall/js)
-lint:
+# Lint Go and TypeScript code
+lint: generate
 	GOOS=js GOARCH=wasm golangci-lint run ./$(GO_SRC)/...
+	npx tsc --noEmit --project tsconfig.json
 
 # Run format and lint
 check: format lint

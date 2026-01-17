@@ -7,9 +7,9 @@ all: check build
 build:
 	go build -o bin/gowasm-bindgen ./cmd/gowasm-bindgen
 
-# Run all tests (excludes example which needs WASM build tags)
+# Run all tests
 test:
-	go test -v ./cmd/... ./internal/...
+	go test -v ./...
 
 # Run golangci-lint (excludes example which needs WASM build tags)
 lint:
