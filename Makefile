@@ -1,4 +1,4 @@
-.PHONY: all build test lint vet format check clean test-e2e
+.PHONY: all build test lint vet format check clean test-e2e test-example-browser
 
 # Default target: check code quality and build
 all: check build
@@ -44,3 +44,8 @@ test-e2e: build
 	./bin/gowasm-bindgen --tests "testdata/e2e/wasm/*_test.go" --output testdata/e2e/test.d.ts
 	# Run TypeScript tests
 	npx tsx --test testdata/e2e/verify_test.ts
+
+# Browser test: build example and run Playwright tests
+test-example-browser:
+	$(MAKE) -C example dist
+	cd example && npx playwright test

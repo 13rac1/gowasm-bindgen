@@ -9,3 +9,6 @@ go/bindings_gen.go
 
 # Copied runtime
 wasm_exec.js
+
+# Playwright test artifacts
+test-results/
