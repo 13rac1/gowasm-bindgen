@@ -130,6 +130,14 @@ func ProcessNumbers(nums []int32) []int32 {
 	return result
 }
 
+// ForEach iterates over items and calls the callback for each.
+// Demonstrates void callback parameter support.
+func ForEach(items []string, callback func(string, int)) {
+	for i, item := range items {
+		callback(item, i)
+	}
+}
+
 func main() {
 	// Keep the Go program running
 	// bindings_gen.go will handle all WASM function registrations

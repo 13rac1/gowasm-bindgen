@@ -197,6 +197,45 @@ func ProcessNumbers(nums []int32) []int32 {
 
 **Performance note**: Byte arrays (`[]byte`) use `js.CopyBytesToGo()` and `js.CopyBytesToJS()` for efficient bulk copying (~10-100x faster for large arrays). Other numeric types use element-by-element iteration.
 
+### Void Callbacks
+
+Functions can accept callback parameters (void only):
+
+```go
+// ForEach iterates over items and calls the callback for each
+func ForEach(items []string, callback func(string, int)) {
+    for i, item := range items {
+        callback(item, i)
+    }
+}
+```
+
+This generates:
+
+```typescript
+class Main {
+    // callback parameter type is inferred
+    forEach(items: string[], callback: (arg0: string, arg1: number) => void): Promise<void>;
+}
+
+// Usage:
+await wasm.forEach(["a", "b", "c"], (item, index) => {
+    console.log(`${index}: ${item}`);
+});
+```
+
+**Limitations:**
+- Callbacks must have no return value (void)
+- Callbacks are called synchronously
+- No nested callbacks (callback taking callback)
+- If the TypeScript callback throws, it becomes a rejected Promise
+
+**Not supported:**
+```go
+// Callbacks with return values - NOT supported
+func Filter(items []string, predicate func(string) bool) []string
+```
+
 ## Type Mapping
 
 | Go Type | TypeScript Type |
@@ -212,6 +251,7 @@ func ProcessNumbers(nums []int32) []int32 {
 | `[]float32`, `[]float64` | `Float32Array`, `Float64Array` |
 | `[]T` (other) | `T[]` |
 | `map[string]T` | `{[key: string]: T}` |
+| `func(T, U)` (void) | `(arg0: T, arg1: U) => void` |
 | Unknown | `any` |
 
 ## Generated Files

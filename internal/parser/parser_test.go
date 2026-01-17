@@ -315,6 +315,78 @@ func CreateService() *Service {
 	}
 }
 
+func TestParseSourceFile_CallbackParams(t *testing.T) {
+	src := `package main
+
+// ForEach iterates over items and calls callback for each
+func ForEach(items []string, callback func(string, int)) {
+}
+
+// OnComplete calls callback when done
+func OnComplete(callback func()) {
+}
+
+// WithNamedParams has named callback params
+func WithNamedParams(callback func(item string, index int)) {
+}
+`
+
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "callbacks.go")
+	if err := os.WriteFile(tmpFile, []byte(src), 0644); err != nil {
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+
+	parsed, err := ParseSourceFile(tmpFile)
+	if err != nil {
+		t.Fatalf("ParseSourceFile() error: %v", err)
+	}
+
+	funcMap := make(map[string]GoFunction)
+	for _, fn := range parsed.Functions {
+		funcMap[fn.Name] = fn
+	}
+
+	// Check ForEach callback parameter
+	forEachFn := funcMap["ForEach"]
+	if len(forEachFn.Params) != 2 {
+		t.Fatalf("ForEach: got %d params, want 2", len(forEachFn.Params))
+	}
+	cbParam := forEachFn.Params[1]
+	if cbParam.Type.Kind != KindFunction {
+		t.Errorf("ForEach callback: got kind %v, want KindFunction", cbParam.Type.Kind)
+	}
+	if !cbParam.Type.IsVoid {
+		t.Error("ForEach callback: expected IsVoid=true")
+	}
+	if len(cbParam.Type.CallbackParams) != 2 {
+		t.Errorf("ForEach callback: got %d params, want 2", len(cbParam.Type.CallbackParams))
+	}
+	if cbParam.Type.CallbackParams[0].Name != "string" {
+		t.Errorf("ForEach callback param 0: got %q, want string", cbParam.Type.CallbackParams[0].Name)
+	}
+	if cbParam.Type.CallbackParams[1].Name != "int" {
+		t.Errorf("ForEach callback param 1: got %q, want int", cbParam.Type.CallbackParams[1].Name)
+	}
+
+	// Check OnComplete callback (no params)
+	onCompleteFn := funcMap["OnComplete"]
+	cbParam = onCompleteFn.Params[0]
+	if cbParam.Type.Kind != KindFunction {
+		t.Errorf("OnComplete callback: got kind %v, want KindFunction", cbParam.Type.Kind)
+	}
+	if len(cbParam.Type.CallbackParams) != 0 {
+		t.Errorf("OnComplete callback: got %d params, want 0", len(cbParam.Type.CallbackParams))
+	}
+
+	// Check WithNamedParams (named params should work same as unnamed)
+	withNamedFn := funcMap["WithNamedParams"]
+	cbParam = withNamedFn.Params[0]
+	if len(cbParam.Type.CallbackParams) != 2 {
+		t.Errorf("WithNamedParams callback: got %d params, want 2", len(cbParam.Type.CallbackParams))
+	}
+}
+
 func TestGoTypeToTS(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -341,6 +413,13 @@ func TestGoTypeToTS(t *testing.T) {
 		{"string slice", GoType{Name: "[]string", Kind: KindSlice, Elem: &GoType{Name: "string", Kind: KindPrimitive}}, "string[]"},
 		{"string map", GoType{Name: "map[string]int", Kind: KindMap, Key: &GoType{Name: "string"}, Value: &GoType{Name: "int", Kind: KindPrimitive}}, "{[key: string]: number}"},
 		{"error", GoType{Name: "error", Kind: KindError, IsError: true}, "string"},
+		// Callbacks
+		{"void callback no params", GoType{Kind: KindFunction, IsVoid: true, CallbackParams: []GoType{}}, "() => void"},
+		{"void callback one param", GoType{Kind: KindFunction, IsVoid: true, CallbackParams: []GoType{{Name: "string", Kind: KindPrimitive}}}, "(arg0: string) => void"},
+		{"void callback two params", GoType{Kind: KindFunction, IsVoid: true, CallbackParams: []GoType{
+			{Name: "string", Kind: KindPrimitive},
+			{Name: "int", Kind: KindPrimitive},
+		}}, "(arg0: string, arg1: number) => void"},
 	}
 
 	for _, tt := range tests {

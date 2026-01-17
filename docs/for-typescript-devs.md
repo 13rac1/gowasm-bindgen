@@ -256,8 +256,25 @@ const doubled = await wasm.processNumbers(nums);  // Returns Int32Array
 | `[]int8` | `Int8Array` |
 | `[]int32` | `Int32Array` |
 | `[]float64` | `Float64Array` |
+| `func(T, U)` | `(arg0: T, arg1: U) => void` |
 
-### 5. Memory Considerations
+### 5. Void Callbacks
+
+Functions that take callback parameters work with TypeScript arrow functions:
+
+```typescript
+// Go: func ForEach(items []string, callback func(string, int))
+await wasm.forEach(["a", "b", "c"], (item, index) => {
+    console.log(`${index}: ${item}`);
+});
+```
+
+**Limitations:**
+- Callbacks must have no return value (void)
+- Callbacks are called synchronously
+- If your callback throws, it becomes a rejected Promise
+
+### 6. Memory Considerations
 
 Byte arrays use efficient bulk copy. For other data, consider batching:
 
@@ -274,7 +291,7 @@ const typedArray = new Int32Array(hugeArray);
 await wasm.processNumbers(typedArray);
 ```
 
-### 6. Debugging WASM Functions
+### 7. Debugging WASM Functions
 
 TypeScript debuggers can't step into WASM code. Use logging:
 
@@ -290,7 +307,7 @@ In Go code, you can log to the browser console:
 js.Global().Get("console").Call("log", "Debug from Go:", value)
 ```
 
-### 7. The `void` Operator Pattern
+### 8. The `void` Operator Pattern
 
 You'll see `void` in our examples:
 

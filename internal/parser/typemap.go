@@ -64,6 +64,14 @@ func GoTypeToTS(t GoType) string {
 	case KindError:
 		return "string"
 
+	case KindFunction:
+		// Generate TypeScript callback type: (arg0: T, arg1: U) => void
+		var params []string
+		for i, p := range t.CallbackParams {
+			params = append(params, fmt.Sprintf("arg%d: %s", i, GoTypeToTS(p)))
+		}
+		return "(" + strings.Join(params, ", ") + ") => void"
+
 	default:
 		return "any"
 	}
@@ -139,6 +147,9 @@ func GoTypeToJSExtraction(t GoType, argExpr string) string {
 			return GoTypeToJSExtraction(*t.Elem, argExpr)
 		}
 		return argExpr
+
+	case KindFunction:
+		return callbackWrapperCode(t, argExpr)
 
 	default:
 		return argExpr
@@ -286,6 +297,24 @@ func structExtraction(t GoType, argExpr string) string {
 	b.WriteString("\t}()")
 
 	return b.String()
+}
+
+// callbackWrapperCode generates a Go function that invokes a JavaScript callback.
+// If the JavaScript callback throws an error, it panics in Go, which is caught
+// by the WASM error boundary and returned to TypeScript as a rejected Promise.
+func callbackWrapperCode(t GoType, argExpr string) string {
+	var goParams []string
+	var jsArgs []string
+
+	for i, p := range t.CallbackParams {
+		paramName := fmt.Sprintf("arg%d", i)
+		goParams = append(goParams, fmt.Sprintf("%s %s", paramName, p.Name))
+		// Convert Go value to JS value using existing helper
+		jsArgs = append(jsArgs, GoTypeToJSReturn(p, paramName))
+	}
+
+	return "func(" + strings.Join(goParams, ", ") + ") { " +
+		argExpr + ".Invoke(" + strings.Join(jsArgs, ", ") + ") }"
 }
 
 // GoTypeToJSReturn generates JavaScript return conversion code

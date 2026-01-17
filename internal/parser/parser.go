@@ -191,9 +191,30 @@ func resolveType(expr ast.Expr, types map[string]*GoType) GoType {
 		}
 
 	case *ast.FuncType:
+		// Parse callback parameters
+		var params []GoType
+		if t.Params != nil {
+			for _, field := range t.Params.List {
+				paramType := resolveType(field.Type, types)
+				// Functions can have unnamed params like func(string, int)
+				if len(field.Names) == 0 {
+					params = append(params, paramType)
+				} else {
+					for range field.Names {
+						params = append(params, paramType)
+					}
+				}
+			}
+		}
+
+		// Check for return values
+		hasReturns := t.Results != nil && len(t.Results.List) > 0
+
 		return GoType{
-			Name: "func",
-			Kind: KindUnsupported,
+			Name:           "func",
+			Kind:           KindFunction,
+			CallbackParams: params,
+			IsVoid:         !hasReturns,
 		}
 
 	case *ast.ChanType:

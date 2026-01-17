@@ -9,6 +9,7 @@ gowasm-bindgen generates TypeScript declarations from Go source code. This docum
 ✅ **Automatic bindings generation** - No manual `js.Global().Set()` calls
 ✅ **Automatic error throwing** - Go `(T, error)` returns automatically throw in TypeScript
 ✅ **Typed arrays** - Go `[]byte` maps to TypeScript `Uint8Array` with efficient bulk copy
+✅ **Void callbacks** - Pass JavaScript functions as callback parameters (void only)
 
 ## Current Limitations
 
@@ -66,16 +67,40 @@ const hash = await wasm.hashData(data);  // Returns Uint8Array
 
 **Performance note**: Byte arrays (`[]byte`) use `js.CopyBytesToGo()` and `js.CopyBytesToJS()` for efficient bulk copying. Other numeric types use element-by-element iteration since Go WASM doesn't provide bulk copy for non-byte types.
 
-### No Callbacks
+### Void Callbacks Only
 
-Can't pass JavaScript functions to Go:
+Void callbacks (callbacks with no return value) are supported:
 
-```typescript
-// Not supported
-await wasm.forEach(items, (item) => console.log(item));
+```go
+// Go: void callback parameter
+func ForEach(items []string, callback func(string, int)) {
+    for i, item := range items {
+        callback(item, i)
+    }
+}
 ```
 
-Go does support callbacks via `js.FuncOf()`, but detection and type generation is complex.
+```typescript
+// TypeScript: callback type is inferred
+await wasm.forEach(["a", "b", "c"], (item, index) => {
+    console.log(`${index}: ${item}`);
+});
+```
+
+**Limitations:**
+- Callbacks must have no return value (void)
+- Callbacks are called synchronously
+- No nested callbacks (callback taking callback)
+- If the TypeScript callback throws, it becomes a rejected Promise
+
+**Not yet supported:**
+```go
+// Callbacks with return values - NOT supported
+func Filter(items []string, predicate func(string) bool) []string
+
+// Nested callbacks - NOT supported
+func WithMiddleware(handler func(next func())) {}
+```
 
 ### Class-Based but Not OOP
 
@@ -142,7 +167,7 @@ Rust has `wasm-pack` for a complete workflow. gowasm-bindgen is just the type ge
 | Primitives | ✅ | ✅ |
 | Structs | ✅ Classes with methods | ✅ Interfaces |
 | Typed arrays | ✅ | ✅ (bytes bulk copy, others element iteration) |
-| Closures/callbacks | ✅ | ❌ |
+| Closures/callbacks | ✅ | ⚠️ Void callbacks only |
 | Promises/async | ✅ | ✅ (default) |
 | Error handling | ✅ Result<T,E> throws | ✅ (T, error) throws |
 | JS imports | ✅ | ❌ |
@@ -167,8 +192,9 @@ Potential improvements (contributions welcome):
 - [x] Automatic Go bindings generation
 - [x] Automatic error throwing for `(T, error)` returns
 - [x] Typed array detection and generation
+- [x] Void callback support (callbacks with no return value)
+- [ ] Callbacks with return values (`func(T) bool`, etc.)
 - [ ] `wasm-pack`-style CLI for complete workflow
-- [ ] Callback/closure support via `js.FuncOf()` detection
 
 ## References
 

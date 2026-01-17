@@ -11,6 +11,7 @@ const (
 	KindStruct
 	KindPointer
 	KindError
+	KindFunction // function type (for callbacks)
 	KindUnsupported
 )
 
@@ -23,6 +24,10 @@ type GoType struct {
 	Value   *GoType   // Value type for maps
 	Fields  []GoField // Fields for struct types
 	IsError bool      // True if this is the error type
+
+	// For KindFunction (void callbacks only)
+	CallbackParams []GoType // Parameter types of the callback (nil if not a callback)
+	IsVoid         bool     // True if callback has no return value (for validator)
 }
 
 // GoField represents a single field in a struct

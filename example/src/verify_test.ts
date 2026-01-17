@@ -56,7 +56,7 @@ void test("Generated types compile and match WASM signatures", async () => {
   // Verify Main class type structure
   // This is a compile-time check - if these type annotations compile,
   // the generated class has the correct method signatures
-  const mockWasm: Pick<Main, 'greet' | 'calculate' | 'formatUser' | 'sumNumbers' | 'validateEmail' | 'divide' | 'terminate'> = {
+  const mockWasm: Pick<Main, 'greet' | 'calculate' | 'formatUser' | 'sumNumbers' | 'validateEmail' | 'divide' | 'hashData' | 'processNumbers' | 'forEach' | 'terminate'> = {
     greet: async (name: string): Promise<string> => `Hello, ${name}!`,
     calculate: async (a: number, b: number, op: string): Promise<number> => {
       switch (op) {
@@ -84,6 +84,28 @@ void test("Generated types compile and match WASM signatures", async () => {
         throw new Error("division by zero");
       }
       return a / b;
+    },
+    hashData: async (data: Uint8Array): Promise<Uint8Array> => {
+      // Simple XOR-based hash matching Go implementation
+      const hash = new Uint8Array(4);
+      for (let i = 0; i < data.length; i++) {
+        hash[i % 4] ^= data[i];
+      }
+      return hash;
+    },
+    processNumbers: async (nums: Int32Array): Promise<Int32Array> => {
+      // Double each number matching Go implementation
+      const result = new Int32Array(nums.length);
+      for (let i = 0; i < nums.length; i++) {
+        result[i] = nums[i] * 2;
+      }
+      return result;
+    },
+    forEach: async (items: string[], callback: (arg0: string, arg1: number) => void): Promise<void> => {
+      // Iterate and call callback for each item matching Go implementation
+      for (let i = 0; i < items.length; i++) {
+        callback(items[i], i);
+      }
     },
     terminate: (): void => {}
   };
@@ -142,4 +164,41 @@ void test("Generated types compile and match WASM signatures", async () => {
     mockWasm.divide(10, 0),
     { message: /division by zero/ }
   );
+
+  // Test hashData with typed arrays (Uint8Array)
+  const hashInput = new Uint8Array([1, 2, 3, 4, 5, 6, 7, 8]);
+  const hashResult = await mockWasm.hashData(hashInput);
+  assert.strictEqual(hashResult.length, 4);
+  // Verify XOR pattern: hash[0] = 1^5, hash[1] = 2^6, hash[2] = 3^7, hash[3] = 4^8
+  assert.strictEqual(hashResult[0], 1 ^ 5);
+  assert.strictEqual(hashResult[1], 2 ^ 6);
+  assert.strictEqual(hashResult[2], 3 ^ 7);
+  assert.strictEqual(hashResult[3], 4 ^ 8);
+
+  // Test processNumbers with typed arrays (Int32Array)
+  const numsInput = new Int32Array([1, 2, 3, 4, 5]);
+  const numsResult = await mockWasm.processNumbers(numsInput);
+  assert.strictEqual(numsResult.length, 5);
+  assert.strictEqual(numsResult[0], 2);
+  assert.strictEqual(numsResult[1], 4);
+  assert.strictEqual(numsResult[2], 6);
+  assert.strictEqual(numsResult[3], 8);
+  assert.strictEqual(numsResult[4], 10);
+
+  // Test forEach with callback
+  const collected: string[] = [];
+  const indices: number[] = [];
+  await mockWasm.forEach(["a", "b", "c"], (item, index) => {
+    collected.push(item);
+    indices.push(index);
+  });
+  assert.deepStrictEqual(collected, ["a", "b", "c"]);
+  assert.deepStrictEqual(indices, [0, 1, 2]);
+
+  // Test forEach with empty array (callback should not be called)
+  let callCount = 0;
+  await mockWasm.forEach([], () => {
+    callCount++;
+  });
+  assert.strictEqual(callCount, 0);
 });

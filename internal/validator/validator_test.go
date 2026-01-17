@@ -262,7 +262,6 @@ func TestValidateFunctions_UnsupportedTypes(t *testing.T) {
 		wantErr  string
 	}{
 		{"channel", "chan", "unsupported type"},
-		{"function", "func", "unsupported type"},
 		{"interface", "interface", "unsupported type"},
 		{"external type", "time.Time", "unsupported type"},
 	}
@@ -339,5 +338,140 @@ func TestValidateFunctions_MultipleErrors(t *testing.T) {
 
 	if len(verr.Errors) != 2 {
 		t.Errorf("expected 2 errors, got %d: %v", len(verr.Errors), verr.Errors)
+	}
+}
+
+func TestValidateFunctions_VoidCallback(t *testing.T) {
+	// Valid: void callback with parameters
+	parsed := &parser.ParsedFile{
+		Package: "wasm",
+		Functions: []parser.GoFunction{
+			{
+				Name: "ForEach",
+				Params: []parser.GoParameter{
+					{Name: "items", Type: parser.GoType{
+						Name: "[]string",
+						Kind: parser.KindSlice,
+						Elem: &parser.GoType{Name: "string", Kind: parser.KindPrimitive},
+					}},
+					{Name: "callback", Type: parser.GoType{
+						Name:   "func",
+						Kind:   parser.KindFunction,
+						IsVoid: true,
+						CallbackParams: []parser.GoType{
+							{Name: "string", Kind: parser.KindPrimitive},
+							{Name: "int", Kind: parser.KindPrimitive},
+						},
+					}},
+				},
+				Returns: []parser.GoType{},
+			},
+		},
+		Types: map[string]*parser.GoType{},
+	}
+
+	err := ValidateFunctions(parsed)
+	if err != nil {
+		t.Errorf("expected no error for void callback, got: %v", err)
+	}
+}
+
+func TestValidateFunctions_VoidCallbackNoParams(t *testing.T) {
+	// Valid: void callback with no parameters
+	parsed := &parser.ParsedFile{
+		Package: "wasm",
+		Functions: []parser.GoFunction{
+			{
+				Name: "OnComplete",
+				Params: []parser.GoParameter{
+					{Name: "callback", Type: parser.GoType{
+						Name:           "func",
+						Kind:           parser.KindFunction,
+						IsVoid:         true,
+						CallbackParams: []parser.GoType{},
+					}},
+				},
+				Returns: []parser.GoType{},
+			},
+		},
+		Types: map[string]*parser.GoType{},
+	}
+
+	err := ValidateFunctions(parsed)
+	if err != nil {
+		t.Errorf("expected no error for void callback with no params, got: %v", err)
+	}
+}
+
+// TestUnsupportedCallbackPatterns verifies the validator correctly rejects
+// callback patterns that gowasm-bindgen doesn't support.
+func TestUnsupportedCallbackPatterns(t *testing.T) {
+	tests := []struct {
+		name string
+		fn   parser.GoFunction
+		want string // expected error substring
+	}{
+		{
+			name: "callback with return value",
+			fn: parser.GoFunction{
+				Name: "Filter",
+				Params: []parser.GoParameter{{
+					Name: "cb",
+					Type: parser.GoType{
+						Kind:           parser.KindFunction,
+						CallbackParams: []parser.GoType{{Name: "string", Kind: parser.KindPrimitive}},
+						IsVoid:         false, // has return value
+					},
+				}},
+			},
+			want: "only void callbacks are supported",
+		},
+		{
+			name: "nested callback",
+			fn: parser.GoFunction{
+				Name: "WithCallback",
+				Params: []parser.GoParameter{{
+					Name: "cb",
+					Type: parser.GoType{
+						Kind:   parser.KindFunction,
+						IsVoid: true,
+						CallbackParams: []parser.GoType{{
+							Kind:   parser.KindFunction, // nested callback
+							IsVoid: true,
+						}},
+					},
+				}},
+			},
+			want: "nested callback",
+		},
+		{
+			name: "function return type",
+			fn: parser.GoFunction{
+				Name:   "GetHandler",
+				Params: []parser.GoParameter{},
+				Returns: []parser.GoType{{
+					Kind:   parser.KindFunction,
+					IsVoid: true,
+				}},
+			},
+			want: "functions are only supported as callback parameters",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			parsed := &parser.ParsedFile{
+				Package:   "wasm",
+				Functions: []parser.GoFunction{tt.fn},
+				Types:     map[string]*parser.GoType{},
+			}
+			err := ValidateFunctions(parsed)
+			if err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !strings.Contains(err.Error(), tt.want) {
+				t.Errorf("expected error containing %q, got %q", tt.want, err.Error())
+			}
+		})
 	}
 }

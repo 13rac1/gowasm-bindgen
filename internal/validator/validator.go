@@ -107,9 +107,39 @@ func validateType(t parser.GoType, funcName, context string) error {
 		// Error is supported
 		return nil
 
+	case parser.KindFunction:
+		// Callbacks are only supported as direct function parameters
+		if !strings.HasPrefix(context, "parameter ") {
+			return fmt.Errorf(
+				"function %s: %s uses a function type (functions are only supported as callback parameters)",
+				funcName, context)
+		}
+
+		// Reject nested callbacks (callback inside another callback)
+		if strings.Contains(context, "callback param") {
+			return fmt.Errorf(
+				"function %s: %s is a nested callback (callbacks cannot take callbacks as parameters)",
+				funcName, context)
+		}
+
+		// Reject callbacks with return values
+		if !t.IsVoid {
+			return fmt.Errorf(
+				"function %s: %s has a return value (only void callbacks are supported)",
+				funcName, context)
+		}
+
+		// Validate callback parameter types recursively
+		for i, param := range t.CallbackParams {
+			if err := validateType(param, funcName, fmt.Sprintf("%s callback param %d", context, i)); err != nil {
+				return err
+			}
+		}
+		return nil
+
 	case parser.KindUnsupported:
 		return fmt.Errorf(
-			"function %s: %s uses unsupported type %q (channels, functions, interfaces, and external types are not supported)",
+			"function %s: %s uses unsupported type %q (channels, interfaces, and external types are not supported)",
 			funcName, context, t.Name)
 
 	default:
