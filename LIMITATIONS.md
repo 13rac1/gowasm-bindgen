@@ -10,6 +10,9 @@ gowasm-bindgen generates TypeScript declarations from Go source code. This docum
 ✅ **Automatic error throwing** - Go `(T, error)` returns automatically throw in TypeScript
 ✅ **Typed arrays** - Go `[]byte` maps to TypeScript `Uint8Array` with efficient bulk copy
 ✅ **Void callbacks** - Pass JavaScript functions as callback parameters (void only)
+✅ **CLI debug output** - `--verbose` flag for troubleshooting
+✅ **Configurable WASM path** - `--wasm-path` for worker.js customization
+✅ **Node.js support** - Sync mode `init()` accepts `BufferSource` for Node.js
 
 ## Current Limitations
 
@@ -19,8 +22,8 @@ Go WASM runs in a Web Worker by default, providing non-blocking async calls:
 
 ```typescript
 // Default mode: non-blocking
-import { Wasm } from './client';
-const wasm = await Wasm.init('./worker.js');
+import { Main } from './client';
+const wasm = await Main.init('./worker.js');
 const result = await wasm.heavyComputation(data);  // UI stays responsive!
 ```
 
@@ -31,8 +34,8 @@ gowasm-bindgen --output generated/client.ts --go-output go/bindings_gen.go --syn
 
 ```typescript
 // Sync mode: blocks main thread
-import { Wasm } from './client';
-const wasm = await Wasm.init('./example.wasm');
+import { Main } from './client';
+const wasm = await Main.init('./example.wasm');
 const result = wasm.heavyComputation(data);  // UI frozen!
 ```
 
@@ -96,7 +99,7 @@ await wasm.forEach(["a", "b", "c"], (item, index) => {
 - Callbacks are invoked during the Go function's execution only
 - No nested callbacks (callback taking callback)
 - In worker mode, callback errors are logged but cannot propagate back to Go
-- If the TypeScript callback throws in sync mode, it becomes a rejected Promise
+- If the TypeScript callback throws in sync mode, the error propagates to the caller
 
 **Not yet supported:**
 ```go
@@ -113,7 +116,7 @@ Functions are methods on a class instance, but not true object-oriented:
 
 ```typescript
 // Current: methods on a WASM instance class
-const wasm = await Wasm.init('./worker.js');
+const wasm = await Main.init('./worker.js');
 const user = await wasm.createUser("Alice", 30);
 const name = await wasm.getUserName(user);
 
