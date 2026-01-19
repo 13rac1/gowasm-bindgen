@@ -7,6 +7,7 @@ bin/
 
 # Generated files
 **/bindings_gen.go
+testdata/e2e/client.ts
 
 # Node.js
 node_modules/

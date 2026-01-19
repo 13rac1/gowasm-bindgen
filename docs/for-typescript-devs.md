@@ -158,6 +158,33 @@ const greeting = wasm.greet('World');  // but calls are sync
 
 Note: Sync mode blocks the main thread, which can freeze your UI for long-running operations.
 
+### Using in Node.js
+
+The sync mode `init()` method accepts either a URL string (for browsers) or a `BufferSource` (for Node.js):
+
+```typescript
+import { readFileSync } from 'fs';
+import { Main } from './generated/client.js';
+
+// Load wasm_exec.js (required for Go WASM runtime)
+import './wasm_exec.js';
+
+// Pass the WASM bytes directly instead of a URL
+const wasmBytes = readFileSync('./dist/example.wasm');
+const wasm = await Main.init(wasmBytes);
+
+const result = wasm.greet('Node.js');
+console.log(result);  // "Hello, Node.js!"
+```
+
+This works because the generated `init()` signature is:
+```typescript
+static async init(wasmSource: string | BufferSource): Promise<Main>
+```
+
+- **Browser**: Pass a URL string, uses `fetch()` + `WebAssembly.instantiateStreaming()`
+- **Node.js**: Pass a `Buffer`/`ArrayBuffer`/`Uint8Array`, uses `WebAssembly.instantiate()`
+
 ## Project Structure
 
 A typical project using gowasm-bindgen looks like this:

@@ -8,7 +8,7 @@ import (
 )
 
 func TestGenerateWorker(t *testing.T) {
-	worker := GenerateWorker()
+	worker := GenerateWorker("module.wasm")
 
 	// Check key parts of the worker
 	if !strings.Contains(worker, "importScripts('wasm_exec.js')") {
@@ -19,6 +19,31 @@ func TestGenerateWorker(t *testing.T) {
 	}
 	if !strings.Contains(worker, "self.postMessage({ type: 'ready' })") {
 		t.Error("worker should post ready message")
+	}
+	if !strings.Contains(worker, "fetch('module.wasm')") {
+		t.Error("worker should fetch module.wasm")
+	}
+}
+
+func TestGenerateWorkerCustomPath(t *testing.T) {
+	tests := []struct {
+		name     string
+		wasmPath string
+		want     string
+	}{
+		{"default", "module.wasm", "fetch('module.wasm')"},
+		{"relative", "./app.wasm", "fetch('./app.wasm')"},
+		{"absolute", "/wasm/app.wasm", "fetch('/wasm/app.wasm')"},
+		{"url", "https://example.com/app.wasm", "fetch('https://example.com/app.wasm')"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			worker := GenerateWorker(tt.wasmPath)
+			if !strings.Contains(worker, tt.want) {
+				t.Errorf("GenerateWorker(%q) should contain %q", tt.wasmPath, tt.want)
+			}
+		})
 	}
 }
 

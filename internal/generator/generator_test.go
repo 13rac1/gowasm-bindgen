@@ -45,7 +45,7 @@ func TestGenerate(t *testing.T) {
 			},
 			want: []string{
 				"export class Wasm",
-				"static async init(wasmUrl: string): Promise<Wasm>",
+				"static async init(wasmSource: string | BufferSource): Promise<Wasm>",
 				"hashData(data: string): string",
 				"const result = (globalThis as any).hashData(data);",
 				"throw new Error((result as { __error: string }).__error);",
@@ -118,7 +118,7 @@ func TestGenerateClass(t *testing.T) {
 			want: []string{
 				"export class Wasm {",
 				"private constructor() {}",
-				"static async init(wasmUrl: string): Promise<Wasm>",
+				"static async init(wasmSource: string | BufferSource): Promise<Wasm>",
 			},
 		},
 		{
@@ -133,7 +133,7 @@ func TestGenerateClass(t *testing.T) {
 			className: "Calculator",
 			want: []string{
 				"export class Calculator {",
-				"static async init(wasmUrl: string): Promise<Calculator>",
+				"static async init(wasmSource: string | BufferSource): Promise<Calculator>",
 				"greet(name: string): string",
 			},
 		},

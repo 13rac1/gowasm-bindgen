@@ -5,22 +5,25 @@ import { readFile } from "node:fs/promises";
 // Load Go WASM runtime
 import "./wasm_exec.js";
 
+// Import generated client
+import { Main } from "./client.js";
+
 void test("WASM functions with TypeScript types", async () => {
-  // Load WASM
+  // Load WASM using generated client
   const wasmCode = await readFile("./testdata/e2e/test.wasm");
-  const go = new Go();
-  const result = await WebAssembly.instantiate(wasmCode, go.importObject);
-  void go.run(result.instance);
+  const wasm = await Main.init(wasmCode);
 
   // Test greet function - type-safe!
-  const greeting: string = greet("Node");
+  const greeting: string = wasm.greet("Node");
   assert.strictEqual(greeting, "Hello, Node!");
 
   // Test add function - type-safe!
-  const sum: number = add(10, 20);
+  const sum: number = wasm.add(10, 20);
   assert.strictEqual(sum, 30);
 
   // Test getInfo function - type-safe!
-  const info = getInfo("test");
+  const info = wasm.getInfo("test");
+  assert.strictEqual(info.name, "test");
+  assert.strictEqual(info.version, 1);
   assert.strictEqual(info.active, true);
 });

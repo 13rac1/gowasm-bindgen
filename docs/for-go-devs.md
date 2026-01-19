@@ -31,6 +31,20 @@ gowasm-bindgen reads your Go source code, infers types from function signatures,
 
 Your package name becomes the TypeScript class name (e.g., `package main` → `Main` class).
 
+## How It Works
+
+gowasm-bindgen uses **source-based type inference** - it parses your Go source file's AST to extract:
+- Exported function signatures (capitalized names, no receivers)
+- Struct definitions with JSON tags
+- Parameter names and types
+- Return types including `(T, error)` patterns
+
+No test files, annotations, or runtime analysis required. Just point it at your Go source file.
+
+```bash
+gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go
+```
+
 ## TinyGo vs Standard Go
 
 | | Standard Go | TinyGo |
@@ -327,14 +341,23 @@ func init() {
 gowasm-bindgen generates a TypeScript class with your package name:
 
 ```typescript
-// Generated client.ts from package main
+// Worker mode (default): generated client.ts
 export class Main {
   static async init(workerUrl: string): Promise<Main>;
   greet(name: string): Promise<string>;
   calculate(a: number, b: number, op: string): Promise<number>;
   terminate(): void;
 }
+
+// Sync mode (--sync flag): generated client.ts
+export class Main {
+  static async init(wasmSource: string | BufferSource): Promise<Main>;
+  greet(name: string): string;  // No Promise - synchronous
+  calculate(a: number, b: number, op: string): number;
+}
 ```
+
+The sync mode `init()` accepts either a URL string (browser) or `BufferSource` (Node.js).
 
 Your TypeScript users import and use it:
 

@@ -2,37 +2,33 @@
 
 package main
 
-import (
-	"syscall/js"
-)
+// Info represents information about something.
+type Info struct {
+	Name    string `json:"name"`
+	Version int    `json:"version"`
+	Active  bool   `json:"active"`
+}
 
-// Simple string operation
-func greet(this js.Value, args []js.Value) interface{} {
-	name := args[0].String()
+// Greet returns a greeting message.
+func Greet(name string) string {
 	return "Hello, " + name + "!"
 }
 
-// Numeric operation
-func add(this js.Value, args []js.Value) interface{} {
-	a := args[0].Int()
-	b := args[1].Int()
+// Add returns the sum of two numbers.
+func Add(a, b int) int {
 	return a + b
 }
 
-// Object return
-func getInfo(this js.Value, args []js.Value) interface{} {
-	return map[string]interface{}{
-		"name":    args[0].String(),
-		"version": 1,
-		"active":  true,
+// GetInfo returns information about the given name.
+func GetInfo(name string) Info {
+	return Info{
+		Name:    name,
+		Version: 1,
+		Active:  true,
 	}
 }
 
 func main() {
-	js.Global().Set("greet", js.FuncOf(greet))
-	js.Global().Set("add", js.FuncOf(add))
-	js.Global().Set("getInfo", js.FuncOf(getInfo))
-
 	// Keep the program running
 	<-make(chan struct{})
 }

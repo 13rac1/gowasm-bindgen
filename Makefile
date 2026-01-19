@@ -31,17 +31,17 @@ check: format lint test
 # Remove build artifacts and generated test files
 clean:
 	rm -rf bin/
-	rm -f testdata/e2e/test.wasm testdata/e2e/test.d.ts testdata/e2e/wasm_exec.js
+	rm -f testdata/e2e/test.wasm testdata/e2e/client.ts testdata/e2e/wasm_exec.js testdata/e2e/wasm/bindings_gen.go
 	go clean -cache -testcache
 
-# End-to-end test: build WASM, generate .d.ts, run TypeScript tests
+# End-to-end test: build WASM, generate bindings, run TypeScript tests
 test-e2e: build
 	# Copy wasm_exec.js from Go installation
 	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" testdata/e2e/
-	# Build WASM binary
+	# Generate TypeScript client and Go bindings
+	./bin/gowasm-bindgen --output testdata/e2e/client.ts --go-output testdata/e2e/wasm/bindings_gen.go --sync testdata/e2e/wasm/main.go
+	# Build WASM binary (includes generated bindings)
 	GOOS=js GOARCH=wasm go build -o testdata/e2e/test.wasm ./testdata/e2e/wasm/
-	# Generate TypeScript declarations
-	./bin/gowasm-bindgen --tests "testdata/e2e/wasm/*_test.go" --output testdata/e2e/test.d.ts
 	# Run TypeScript tests
 	npx tsx --test testdata/e2e/verify_test.ts
 

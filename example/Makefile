@@ -44,6 +44,7 @@ generate:
 	go run ../cmd/gowasm-bindgen/main.go \
 		--output $(GENERATED)/client.ts \
 		--go-output $(GO_SRC)/bindings_gen.go \
+		--wasm-path example.wasm \
 		$(GO_SRC)/main.go
 
 # Generate synchronous API (blocks main thread)

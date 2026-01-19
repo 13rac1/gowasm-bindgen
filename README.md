@@ -105,23 +105,61 @@ gowasm-bindgen main.go --output client.ts
 # Creates: client.ts + worker.js (you write WASM wrappers manually)
 ```
 
+## CLI Reference
+
+```
+gowasm-bindgen <source.go> --output <file> [options]
+
+Required:
+  --output FILE         TypeScript client output path
+
+Options:
+  --go-output FILE      Go bindings output path
+  --sync                Generate synchronous API (default: worker mode)
+  --wasm-path PATH      WASM file path in worker.js (default: "module.wasm")
+  --verbose             Enable debug output to stderr
+```
+
+### Examples
+
+```bash
+# Worker mode (default) - async, non-blocking
+gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go
+
+# Sync mode - direct function calls
+gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go --sync
+
+# Custom WASM path (for monorepos or CDN deployment)
+gowasm-bindgen main.go --output client.ts --wasm-path dist/app.wasm
+
+# Debug output to troubleshoot generation
+gowasm-bindgen main.go --output client.ts --verbose
+```
+
 **Usage in TypeScript:**
 
 ```typescript
-// Worker mode (default) - non-blocking
+// Worker mode (default) - non-blocking, browser
 import { Main } from './client';
 
 const wasm = await Main.init('./worker.js');
-const greeting = await wasm.Greet('World');  // runs in worker
-const user = await wasm.FormatUser('Alice', 30, true);
+const greeting = await wasm.greet('World');  // runs in worker
+const user = await wasm.formatUser('Alice', 30, true);
 wasm.terminate();
 
-// Sync mode (--sync flag) - blocks main thread
+// Sync mode (--sync flag) - browser
 import { Main } from './client';
 
-const wasm = await Main.init('./example.wasm');  // async load
-const greeting = wasm.Greet('World');  // sync call (no await)
-const user = wasm.FormatUser('Alice', 30, true);
+const wasm = await Main.init('./example.wasm');  // URL string
+const greeting = wasm.greet('World');  // sync call (no await)
+
+// Sync mode - Node.js (pass Buffer instead of URL)
+import { readFileSync } from 'fs';
+import { Main } from './client.js';
+
+const wasmBytes = readFileSync('./example.wasm');
+const wasm = await Main.init(wasmBytes);  // BufferSource
+const greeting = wasm.greet('World');
 ```
 
 ## Get Started
@@ -176,8 +214,8 @@ No annotations. No build plugins. Just normal Go code.
 See [LIMITATIONS.md](LIMITATIONS.md) for a comparison with Rust's wasm-bindgen and current gaps. Highlights:
 
 - Worker mode is default (async Promise-based), use `--sync` for synchronous blocking calls
-- No typed arrays (requires string serialization)
-- No callbacks or closures
+- Void callbacks supported (fire-and-forget), no return value callbacks
+- Typed arrays for byte slices, element-by-element for other numeric slices
 - Class-based API (methods on class instances)
 
 ## License
