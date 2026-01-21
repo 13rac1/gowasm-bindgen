@@ -1,0 +1,32 @@
+baseURL = "https://13rac1.github.io/gowasm-bindgen/"
+languageCode = "en-us"
+title = "gowasm-bindgen"
+theme = "hugo-book"
+
+# Book theme settings
+[params]
+  BookTheme = "dark"
+  BookToC = true
+  BookSection = "docs"
+  BookRepo = "https://github.com/13rac1/gowasm-bindgen"
+  BookEditPath = "edit/main/website/content"
+  BookDateFormat = "January 2, 2006"
+  BookSearch = true
+
+[menu]
+  [[menu.before]]
+    name = "Live Demo"
+    url = "/examples/image-processing/"
+    weight = 1
+
+  [[menu.after]]
+    name = "GitHub"
+    url = "https://github.com/13rac1/gowasm-bindgen"
+    weight = 10
+
+[markup]
+  [markup.highlight]
+    style = "github-dark"
+  [markup.goldmark]
+    [markup.goldmark.renderer]
+      unsafe = true
