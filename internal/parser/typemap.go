@@ -443,7 +443,7 @@ func byteSliceReturn(valueExpr string) string {
 }
 
 // mapReturn generates return conversion for maps
-func mapReturn(t GoType, valueExpr string) string {
+func mapReturn(_ GoType, valueExpr string) string {
 	return "map[string]interface{}(" + valueExpr + ")"
 }
 

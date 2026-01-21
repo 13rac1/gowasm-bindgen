@@ -36,7 +36,7 @@ func ValidateFunctions(parsed *parser.ParsedFile) error {
 }
 
 // validateFunction checks a single function for unsupported features
-func validateFunction(fn parser.GoFunction, types map[string]*parser.GoType) []error {
+func validateFunction(fn parser.GoFunction, _ map[string]*parser.GoType) []error {
 	var errs []error
 
 	// Check parameters for unsupported types

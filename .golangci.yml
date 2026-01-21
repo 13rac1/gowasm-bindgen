@@ -1,9 +1,50 @@
-version: 2
+version: "2"
 
 run:
   timeout: 5m
 
 formatters:
   enable:
-    - gofmt         # Checks code is formatted
-    - goimports     # Checks imports are formatted
+    - gofmt             # Format check
+    - goimports         # Import order
+
+linters:
+  enable:
+    # Bugs
+    - errcheck          # Unchecked errors
+    - gosec             # Security issues
+    - staticcheck       # Go vet on steroids
+    - ineffassign       # Unused assignments
+    - bodyclose         # HTTP response body not closed
+    - nilerr            # Returning nil after checking error
+
+    # Style
+    - misspell          # Spelling mistakes
+    - unconvert         # Unnecessary conversions
+    - unparam           # Unused function parameters
+    - unused            # Unused code
+
+    # Complexity
+    - gocyclo           # Cyclomatic complexity
+    - gocritic          # Comprehensive linter
+
+    # Error handling
+    - errorlint         # Error wrapping issues
+    - wrapcheck         # Errors from external packages should be wrapped
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+  gosec:
+    excludes:
+      - G104  # Unhandled errors (covered by errcheck)
+
+issues:
+  exclude-dirs:
+    - testdata
+    - website

@@ -48,7 +48,7 @@ func helper() {}
 
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "test.go")
-	if err := os.WriteFile(tmpFile, []byte(src), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte(src), 0600); err != nil {
 		t.Fatalf("failed to write temp file: %v", err)
 	}
 
@@ -104,7 +104,7 @@ func MultiReturn(x int) (string, error) {
 
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "funcs.go")
-	if err := os.WriteFile(tmpFile, []byte(src), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte(src), 0600); err != nil {
 		t.Fatalf("failed to write temp file: %v", err)
 	}
 
@@ -161,7 +161,7 @@ func MightFail(x int) (string, error) {
 
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "err.go")
-	if err := os.WriteFile(tmpFile, []byte(src), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte(src), 0600); err != nil {
 		t.Fatalf("failed to write temp file: %v", err)
 	}
 
@@ -204,7 +204,7 @@ func GetData() Data {
 
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "tags.go")
-	if err := os.WriteFile(tmpFile, []byte(src), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte(src), 0600); err != nil {
 		t.Fatalf("failed to write temp file: %v", err)
 	}
 
@@ -246,7 +246,7 @@ func ProcessMap(data map[string]int) map[string]bool {
 
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "collections.go")
-	if err := os.WriteFile(tmpFile, []byte(src), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte(src), 0600); err != nil {
 		t.Fatalf("failed to write temp file: %v", err)
 	}
 
@@ -297,7 +297,7 @@ func CreateService() *Service {
 
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "methods.go")
-	if err := os.WriteFile(tmpFile, []byte(src), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte(src), 0600); err != nil {
 		t.Fatalf("failed to write temp file: %v", err)
 	}
 
@@ -333,7 +333,7 @@ func WithNamedParams(callback func(item string, index int)) {
 
 	tmpDir := t.TempDir()
 	tmpFile := filepath.Join(tmpDir, "callbacks.go")
-	if err := os.WriteFile(tmpFile, []byte(src), 0644); err != nil {
+	if err := os.WriteFile(tmpFile, []byte(src), 0600); err != nil {
 		t.Fatalf("failed to write temp file: %v", err)
 	}
 

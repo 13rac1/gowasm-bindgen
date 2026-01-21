@@ -84,12 +84,12 @@ func run() error {
 
 	// Validate functions
 	if err := validator.ValidateFunctions(parsed); err != nil {
-		return err
+		return fmt.Errorf("validation failed: %w", err)
 	}
 
 	// Create output directory if needed
 	if dir := filepath.Dir(output); dir != "." {
-		if err := os.MkdirAll(dir, 0755); err != nil {
+		if err := os.MkdirAll(dir, 0750); err != nil {
 			return fmt.Errorf("creating output directory: %w", err)
 		}
 	}
@@ -101,7 +101,7 @@ func run() error {
 		workerMode := !sync
 		bindingsCode := generator.GenerateGoBindings(parsed, workerMode)
 
-		if err := os.WriteFile(goOutput, []byte(bindingsCode), 0644); err != nil {
+		if err := os.WriteFile(goOutput, []byte(bindingsCode), 0600); err != nil {
 			return fmt.Errorf("writing Go bindings: %w", err)
 		}
 
@@ -127,7 +127,7 @@ func generateSyncOutput(parsed *parser.ParsedFile, output string) error {
 	content := generator.Generate(parsed)
 
 	// Write output
-	if err := os.WriteFile(output, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(output, []byte(content), 0600); err != nil {
 		return fmt.Errorf("writing output: %w", err)
 	}
 
@@ -147,13 +147,13 @@ func generateWorkerOutput(parsed *parser.ParsedFile, output, wasmPath string) er
 
 	// Generate worker.js
 	workerPath := filepath.Join(outputDir, "worker.js")
-	if err := os.WriteFile(workerPath, []byte(generator.GenerateWorker(wasmPath)), 0644); err != nil {
+	if err := os.WriteFile(workerPath, []byte(generator.GenerateWorker(wasmPath)), 0600); err != nil {
 		return fmt.Errorf("writing worker: %w", err)
 	}
 
 	// Generate client.ts
 	clientContent := generator.GenerateClient(parsed)
-	if err := os.WriteFile(output, []byte(clientContent), 0644); err != nil {
+	if err := os.WriteFile(output, []byte(clientContent), 0600); err != nil {
 		return fmt.Errorf("writing client: %w", err)
 	}
 
