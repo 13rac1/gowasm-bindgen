@@ -9,12 +9,16 @@ type: docs
 
 ## The Problem
 
-Go WASM functions are invisible to TypeScript:
+Go compiles to WebAssembly (a binary format), not JavaScript. Bridging Go and JS requires tedious glue code:
 
 ```typescript
 // TypeScript has no idea what this returns or accepts
 const result = window.myGoFunction(???, ???);  // any
 ```
+
+No type safety. No IDE support. Runtime crashes instead of compile errors.
+
+[Learn more about the problem →]({{< relref "/docs/why" >}})
 
 ## The Solution
 

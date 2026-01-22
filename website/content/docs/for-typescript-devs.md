@@ -1,6 +1,6 @@
 ---
 title: "For TypeScript Developers"
-weight: 3
+weight: 4
 ---
 
 # gowasm-bindgen for TypeScript Developers

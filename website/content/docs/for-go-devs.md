@@ -1,6 +1,6 @@
 ---
 title: "For Go Developers"
-weight: 2
+weight: 3
 ---
 
 # gowasm-bindgen for Go Developers

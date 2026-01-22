@@ -8,6 +8,10 @@ bookFlatSection: true
 
 Learn how to use gowasm-bindgen to generate TypeScript bindings from your Go code.
 
+## Understanding gowasm-bindgen
+
+- [Why gowasm-bindgen?]({{< relref "/docs/why" >}}) - The problem this tool solves
+
 ## For Developers
 
 - [Getting Started]({{< relref "/docs/getting-started" >}}) - Quick setup guide
