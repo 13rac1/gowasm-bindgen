@@ -11,6 +11,7 @@ testdata/e2e/client.ts
 
 # Node.js
 node_modules/
+package-lock.json
 
 # Test artifacts
 *.test
@@ -20,6 +21,11 @@ coverage.out
 .idea/
 .vscode/
 *.swp
+
+# Hugo
+website/public/
+website/resources/
+website/.hugo_build.lock
 
 # OS
 .DS_Store

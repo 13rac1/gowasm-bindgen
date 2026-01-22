@@ -18,3 +18,14 @@ Features:
 - Grayscale, brightness, contrast, sepia, invert filters
 - Side-by-side WASM vs JavaScript performance comparison
 - Real-time benchmarking with millisecond timing
+
+## JavaScript Sandbox
+
+[**Live Demo →**]({{< relref "/examples/js-sandbox" >}})
+
+Execute untrusted JavaScript securely using Goja (a Go-based JS interpreter) compiled to WebAssembly.
+
+Features:
+- Complete isolation from browser APIs
+- Same interpreter as your Go backend
+- Demonstrates gowasm-bindgen with standard Go (not TinyGo)

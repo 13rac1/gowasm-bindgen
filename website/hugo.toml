@@ -15,9 +15,14 @@ theme = "hugo-book"
 
 [menu]
   [[menu.before]]
-    name = "Live Demo"
+    name = "Demo - Image Processing"
     url = "/examples/image-processing/"
     weight = 1
+
+  [[menu.before]]
+    name = "Demo - JS Sandbox"
+    url = "/examples/js-sandbox/"
+    weight = 2
 
   [[menu.after]]
     name = "GitHub"

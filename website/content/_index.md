@@ -52,4 +52,4 @@ gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go
 ```
 
 {{< button href="/docs/getting-started" >}}Get Started{{< /button >}}
-{{< button href="/examples/image-processing" >}}Live Demo{{< /button >}}
+{{< button href="/examples" >}}Live Demos{{< /button >}}

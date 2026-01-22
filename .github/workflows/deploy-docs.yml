@@ -6,6 +6,7 @@ on:
     paths:
       - 'website/**'
       - 'examples/image-processing/**'
+      - 'examples/js-sandbox/**'
       - '.github/workflows/deploy-docs.yml'
   workflow_dispatch:
 
@@ -50,6 +51,11 @@ jobs:
       - name: Build image processing example
         run: |
           cd examples/image-processing
+          make build
+
+      - name: Build js-sandbox example
+        run: |
+          cd examples/js-sandbox
           make build
 
       - name: Build Hugo site
