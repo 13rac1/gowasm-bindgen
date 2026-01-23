@@ -1,11 +1,12 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
+
+	flag "github.com/spf13/pflag"
 
 	"github.com/13rac1/gowasm-bindgen/internal/generator"
 	"github.com/13rac1/gowasm-bindgen/internal/parser"
