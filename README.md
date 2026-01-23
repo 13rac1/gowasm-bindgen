@@ -221,3 +221,11 @@ See [LIMITATIONS.md](LIMITATIONS.md) for a comparison with Rust's wasm-bindgen a
 ## License
 
 MIT
+
+## Thanks
+
+Logo assets sourced from:
+- [WebAssembly](https://webassembly.org/) logo
+- [Go](https://go.dev/) gopher
+- [TypeScript](https://www.typescriptlang.org/) logo
+- Cruise Ship by [FreePNGimg.com](https://freepngimg.com/)
