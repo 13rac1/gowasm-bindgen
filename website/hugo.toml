@@ -12,6 +12,11 @@ theme = "hugo-book"
   BookEditPath = "edit/main/website/content"
   BookDateFormat = "January 2, 2006"
   BookSearch = true
+  BookLogo = "images/gowasm-bindgen-logo-sm.png"
+
+  # Social preview / Open Graph
+  images = ["images/gowasm-bindgen-logo.png"]
+  description = "Generate TypeScript bindings from Go source code. Type-safe Go in the browser."
 
 [menu]
   [[menu.before]]

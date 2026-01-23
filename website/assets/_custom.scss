@@ -1,0 +1,180 @@
+// gowasm-bindgen custom theme
+// Go blue (#00ADD8) → WASM purple (#654FF0) gradient
+
+// Color variables
+$go-blue: #00ADD8;
+$wasm-purple: #654FF0;
+$go-blue-light: #4fc3dc;
+$wasm-purple-light: #8a7ff5;
+
+// Gradient definitions
+$brand-gradient: linear-gradient(135deg, $go-blue 0%, $wasm-purple 100%);
+$brand-gradient-hover: linear-gradient(135deg, $go-blue-light 0%, $wasm-purple-light 100%);
+
+// Hero gradient text
+.gradient-text {
+  background: $brand-gradient;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+// Homepage hero styling
+.markdown h1:first-of-type {
+  font-size: 2.5rem;
+  font-weight: 700;
+  background: $brand-gradient;
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  padding-bottom: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+// Links with gradient hover
+.book-menu a,
+.book-toc a,
+.markdown a {
+  color: $go-blue-light;
+  text-decoration: none;
+  transition: color 0.2s ease;
+
+  &:hover {
+    color: $wasm-purple-light;
+  }
+}
+
+// Primary buttons with gradient
+.markdown a.btn,
+a.book-btn {
+  display: inline-block;
+  padding: 0.75rem 1.5rem;
+  background: $brand-gradient;
+  color: white !important;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  text-decoration: none;
+  transition: all 0.2s ease;
+  box-shadow: 0 2px 8px rgba($wasm-purple, 0.3);
+
+  &:hover {
+    background: $brand-gradient-hover;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba($wasm-purple, 0.4);
+  }
+}
+
+// Code blocks
+.highlight pre,
+.markdown pre {
+  background: #1a1a2e !important;
+  border: 1px solid rgba($wasm-purple, 0.2);
+  border-radius: 8px;
+}
+
+// Inline code
+.markdown code:not([class*="language-"]) {
+  background: rgba($wasm-purple, 0.15);
+  color: $go-blue-light;
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-size: 0.9em;
+}
+
+// Sidebar styling
+.book-menu {
+  nav {
+    padding: 1rem;
+  }
+
+  // Active menu item
+  a.active {
+    color: $wasm-purple-light !important;
+    font-weight: 600;
+  }
+}
+
+// Header/brand area
+.book-brand a.flex.align-center {
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  gap: 0.5rem;
+  text-align: center;
+}
+
+.book-brand img {
+  height: 100px;
+  width: auto;
+}
+
+.book-brand span {
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+// Tables
+.markdown table {
+  border-collapse: collapse;
+
+  th {
+    background: rgba($wasm-purple, 0.2);
+    border-bottom: 2px solid $wasm-purple;
+  }
+
+  td, th {
+    padding: 0.75rem 1rem;
+    border: 1px solid rgba($wasm-purple, 0.15);
+  }
+
+  tr:hover {
+    background: rgba($go-blue, 0.05);
+  }
+}
+
+// Blockquotes
+.markdown blockquote {
+  border-left: 4px solid $wasm-purple;
+  background: rgba($wasm-purple, 0.05);
+  padding: 1rem;
+  margin: 1rem 0;
+  border-radius: 0 8px 8px 0;
+}
+
+// Feature cards (for homepage)
+.feature-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 1.5rem;
+  margin: 2rem 0;
+}
+
+.feature-card {
+  background: rgba($wasm-purple, 0.08);
+  border: 1px solid rgba($wasm-purple, 0.2);
+  border-radius: 12px;
+  padding: 1.5rem;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: rgba($go-blue, 0.4);
+    transform: translateY(-2px);
+    box-shadow: 0 4px 16px rgba($wasm-purple, 0.15);
+  }
+
+  h3 {
+    margin-top: 0;
+    color: $go-blue-light;
+  }
+}
+
+// Smooth scrolling
+html {
+  scroll-behavior: smooth;
+}
+
+// Selection color
+::selection {
+  background: rgba($wasm-purple, 0.3);
+}

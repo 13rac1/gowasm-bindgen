@@ -39,11 +39,34 @@ const greeting = await wasm.greet("World");
 
 ## Features
 
-- **Zero boilerplate** - Write normal Go functions, no annotations needed
-- **Full type inference** - Types inferred from Go function signatures
-- **Worker mode** - Non-blocking async calls via Web Workers (default)
-- **Sync mode** - Direct synchronous calls when needed
-- **TinyGo support** - Ship 90KB gzipped binaries
+{{< rawhtml >}}
+<div class="feature-grid">
+  <div class="feature-card">
+    <h3>Zero Boilerplate</h3>
+    <p>Write normal Go functions. No annotations, decorators, or special syntax needed.</p>
+  </div>
+  <div class="feature-card">
+    <h3>Full Type Inference</h3>
+    <p>Types are inferred from Go function signatures. Structs, slices, maps—all handled.</p>
+  </div>
+  <div class="feature-card">
+    <h3>Worker Mode</h3>
+    <p>Non-blocking async calls via Web Workers. Keep your UI responsive by default.</p>
+  </div>
+  <div class="feature-card">
+    <h3>Sync Mode</h3>
+    <p>Direct synchronous calls when you need them. Simple flag to switch modes.</p>
+  </div>
+  <div class="feature-card">
+    <h3>TinyGo Support</h3>
+    <p>Ship 90KB gzipped binaries. Perfect for performance-critical applications.</p>
+  </div>
+  <div class="feature-card">
+    <h3>Standard Go</h3>
+    <p>Works with regular Go compiler too. 2-3MB gzipped for full stdlib access.</p>
+  </div>
+</div>
+{{< /rawhtml >}}
 
 ## Quick Start
 
