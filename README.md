@@ -218,6 +218,10 @@ See [LIMITATIONS.md](LIMITATIONS.md) for a comparison with Rust's wasm-bindgen a
 - Typed arrays for byte slices, element-by-element for other numeric slices
 - Class-based API (methods on class instances)
 
+## Related Projects
+
+- **[gowebapi/webapi](https://github.com/gowebapi/webapi)** — Go bindings for browser APIs (DOM, Fetch, Canvas, etc.). Use it alongside gowasm-bindgen: gowebapi/webapi lets your Go code *call* browser APIs, while gowasm-bindgen lets JavaScript *call* your Go functions.
+
 ## License
 
 MIT
