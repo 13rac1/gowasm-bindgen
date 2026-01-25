@@ -5,7 +5,7 @@ Go WASM functions traditionally required awkward `js.Value` signatures. With gow
 ## Directory Structure
 
 ```
-example/
+examples/simple/
 ├── go/                  # Go source code
 │   ├── main.go          # Normal Go functions (no js.Value!)
 │   ├── main_test.go     # Unit tests

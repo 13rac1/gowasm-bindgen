@@ -11,15 +11,15 @@ build:
 test:
 	go test -v ./...
 
-# Run golangci-lint (excludes example which needs WASM build tags)
+# Run golangci-lint (excludes examples which needs WASM build tags)
 lint:
 	golangci-lint run ./cmd/... ./internal/...
-	GOOS=js GOARCH=wasm golangci-lint run ./example/...
+	GOOS=js GOARCH=wasm golangci-lint run ./examples/...
 
-# Run go vet (excludes example which needs WASM build tags)
+# Run go vet (excludes examples which needs WASM build tags)
 vet:
 	go vet ./cmd/... ./internal/...
-	GOOS=js GOARCH=wasm go vet ./example/...
+	GOOS=js GOARCH=wasm go vet ./examples/...
 
 # Format code with gofmt
 format:
@@ -47,5 +47,5 @@ test-e2e: build
 
 # Browser test: build example and run Playwright tests
 test-example-browser:
-	$(MAKE) -C example dist
-	cd example && npx playwright test
+	$(MAKE) -C examples/simple dist
+	cd examples/simple && npx playwright test

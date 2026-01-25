@@ -246,7 +246,7 @@ const host = config["host"];
 
 ## Browser vs Node.js Differences
 
-### Browser-focused (`example/tsconfig.json`)
+### Browser-focused (`examples/simple/tsconfig.json`)
 ```json
 {
   "compilerOptions": {

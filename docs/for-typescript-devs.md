@@ -87,7 +87,7 @@ console.log(user.wrongField);
 
 ## Complete Example
 
-See the [example/src/app.ts](../example/src/app.ts) for a working TypeScript application that uses the generated class API.
+See the [examples/simple/src/app.ts](../examples/simple/src/app.ts) for a working TypeScript application that uses the generated class API.
 
 ```typescript
 import { Main } from './generated/client';
@@ -356,6 +356,6 @@ The generated `client.ts` is just a TypeScript file you can import directly. No 
 
 ## Next Steps
 
-- Check out the [example/](../example/) directory for a complete working demo
-- Run `make serve` in the example directory, then open http://localhost:8080
+- Check out the [examples/simple/](../examples/simple/) directory for a complete working demo
+- Run `make serve` in the examples/simple directory, then open http://localhost:8080
 - Read [for-go-devs.md](./for-go-devs.md) if you want to understand how the Go side works

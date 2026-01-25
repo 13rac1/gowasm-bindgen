@@ -390,7 +390,7 @@ your-project/
 
 ## Complete Example
 
-See the [example/](../example/) directory for a working demo with:
+See the [examples/simple/](../examples/simple/) directory for a working demo with:
 - 5 WASM functions with different parameter/return types
 - Normal Go functions (no `js.Value` signatures)
 - Unit tests

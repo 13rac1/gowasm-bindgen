@@ -171,10 +171,10 @@ Choose your path:
 
 ## See It Working
 
-The [example/](example/) directory has a complete demo:
+The [examples/simple/](examples/simple/) directory has a complete demo:
 
 ```bash
-cd example
+cd examples/simple
 make all    # Build WASM, generate types, verify, compile TypeScript
 make serve  # Open http://localhost:8080
 ```
