@@ -3,14 +3,14 @@ import assert from "node:assert";
 import { readFile } from "node:fs/promises";
 
 // Load Go WASM runtime
-import "./wasm_exec.js";
+import "./generated/wasm_exec.js";
 
 // Import generated client
-import { GoWasm } from "./client.js";
+import { GoWasm } from "./generated/go-wasm.js";
 
 void test("WASM functions with TypeScript types", async () => {
   // Load WASM using generated client
-  const wasmCode = await readFile("./test/e2e/test.wasm");
+  const wasmCode = await readFile("./test/e2e/generated/wasm.wasm");
   const wasm = await GoWasm.init(wasmCode);
 
   // Test greet function - type-safe!

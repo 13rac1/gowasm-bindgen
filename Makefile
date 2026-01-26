@@ -1,4 +1,4 @@
-.PHONY: all build test lint vet format check clean test-e2e test-example-browser
+.PHONY: all build test lint vet format check clean test-e2e test-example-browser test-website
 
 # Default target: check code quality and build
 all: check build
@@ -31,17 +31,14 @@ check: format lint test
 # Remove build artifacts and generated test files
 clean:
 	rm -rf bin/
-	rm -f test/e2e/test.wasm test/e2e/client.ts test/e2e/wasm_exec.js test/e2e/wasm/bindings_gen.go
+	rm -rf test/e2e/generated/
+	rm -f test/e2e/wasm/bindings_gen.go
 	go clean -cache -testcache
 
 # End-to-end test: build WASM, generate bindings, run TypeScript tests
 test-e2e: build
-	# Copy wasm_exec.js from Go installation
-	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" test/e2e/
-	# Generate TypeScript client and Go bindings
-	./bin/gowasm-bindgen --ts-output test/e2e/client.ts --go-output test/e2e/wasm/bindings_gen.go --mode sync test/e2e/wasm/main.go
-	# Build WASM binary (includes generated bindings)
-	GOOS=js GOARCH=wasm go build -o test/e2e/test.wasm ./test/e2e/wasm/
+	# Generate bindings and build WASM
+	./bin/gowasm-bindgen test/e2e/wasm/main.go --output test/e2e/generated --mode sync --compiler go
 	# Run TypeScript tests
 	npx tsx --test test/e2e/verify_test.ts
 
@@ -49,3 +46,9 @@ test-e2e: build
 test-example-browser:
 	$(MAKE) -C examples/simple dist
 	cd examples/simple && npx playwright test
+
+# Build website with all examples (requires hugo, tinygo, node)
+test-website: build
+	cd examples/image-processing && npm install && $(MAKE) website
+	cd examples/js-sandbox && npm install && $(MAKE) website
+	cd website && hugo --minify

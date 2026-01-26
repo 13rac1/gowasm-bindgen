@@ -6,7 +6,7 @@ Go WASM functions traditionally required awkward `js.Value` signatures. With gow
 
 ```
 examples/simple/
-├── go/                  # Go source code
+├── wasm/                # Go source code
 │   ├── main.go          # Normal Go functions (no js.Value!)
 │   ├── main_test.go     # Unit tests
 │   └── bindings_gen.go  # Generated WASM bindings (gitignored)
@@ -18,11 +18,13 @@ examples/simple/
 ├── public/              # Static assets
 │   └── index.html
 │
-├── generated/           # Generated TS/JS (gitignored)
-│   ├── client.ts        # TypeScript class API
-│   └── worker.js        # Web Worker loader
+├── generated/           # gowasm-bindgen output (gitignored)
+│   ├── go-wasm.ts       # TypeScript class API
+│   ├── worker.js        # Web Worker loader
+│   ├── wasm.wasm        # Compiled WASM binary
+│   └── wasm_exec.js     # Go runtime
 │
-└── dist/                # Build output (gitignored)
+└── dist/                # Final bundled output (gitignored)
 ```
 
 ## Quick Start
@@ -103,7 +105,7 @@ export class Main {
 }
 ```
 
-### Go Bindings (`go/bindings_gen.go`)
+### Go Bindings (`wasm/bindings_gen.go`)
 
 Handles `js.Value` conversions automatically:
 
@@ -127,23 +129,25 @@ make serve  # Build and start server at http://localhost:8080
 
 ## How It Works
 
-1. **Write normal Go functions** in `go/main.go`:
+1. **Write normal Go functions** in `wasm/main.go`:
    ```go
    func Greet(name string) string {
        return "Hello, " + name + "!"
    }
    ```
 
-2. **Run gowasm-bindgen**:
+2. **Run gowasm-bindgen** (generates TypeScript client, worker.js, and compiles WASM):
    ```bash
-   gowasm-bindgen go/main.go \
-       --ts-output generated/client.ts \
-       --go-output go/bindings_gen.go
+   gowasm-bindgen wasm/main.go
    ```
 
-3. **Build WASM**:
+3. Or build with custom options:
    ```bash
-   tinygo build -o dist/example.wasm -target wasm ./go/
+   # Generate only (skip WASM compilation)
+   gowasm-bindgen wasm/main.go --no-build
+
+   # Compile WASM separately
+   tinygo build -o generated/wasm.wasm -target wasm ./wasm/
    ```
 
 ## Requirements

@@ -9,8 +9,8 @@
  * The new API uses a class instance instead of global functions:
  *
  * ```typescript
- * import { Main } from './client';
- * const wasm = await Main.init('./worker.js');
+ * import { GoWasm } from './go-wasm';
+ * const wasm = await GoWasm.init('./worker.js');
  * const result = await wasm.greet('World');
  * wasm.terminate();
  * ```
@@ -26,7 +26,7 @@
  */
 import { test } from "node:test";
 import assert from "node:assert";
-import type { Main, FormatUserResult, ValidateEmailResult } from "../generated/client";
+import type { GoWasm, FormatUserResult, ValidateEmailResult } from "../generated/go-wasm";
 
 void test("Generated types compile and match WASM signatures", async () => {
   // Type-only test: verify the generated interfaces exist and have correct shapes
@@ -53,11 +53,11 @@ void test("Generated types compile and match WASM signatures", async () => {
   assert.strictEqual(invalidEmailResult.valid, false);
   assert.strictEqual(typeof invalidEmailResult.error, "string");
 
-  // Verify Main class type structure
+  // Verify GoWasm class type structure
   // This is a compile-time check - if these type annotations compile,
   // the generated class has the correct method signatures
   // Note: forEach removed - callbacks require --sync mode (Web Workers can't serialize functions)
-  const mockWasm: Pick<Main, 'greet' | 'calculate' | 'formatUser' | 'sumNumbers' | 'validateEmail' | 'divide' | 'hashData' | 'processNumbers' | 'terminate'> = {
+  const mockWasm: Pick<GoWasm, 'greet' | 'calculate' | 'formatUser' | 'sumNumbers' | 'validateEmail' | 'divide' | 'hashData' | 'processNumbers' | 'terminate'> = {
     greet: async (name: string): Promise<string> => `Hello, ${name}!`,
     calculate: async (a: number, b: number, op: string): Promise<number> => {
       switch (op) {

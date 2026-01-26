@@ -21,20 +21,20 @@ Go WASM runs in a Web Worker by default, providing non-blocking async calls:
 
 ```typescript
 // Default mode: non-blocking
-import { Main } from './client';
-const wasm = await Main.init('./worker.js');
+import { GoWasm } from './go-wasm';
+const wasm = await GoWasm.init('./worker.js');
 const result = await wasm.heavyComputation(data);  // UI stays responsive!
 ```
 
 **Want sync?** Use `--mode sync` flag to run on the main thread (blocks until complete):
 ```bash
-gowasm-bindgen --ts-output generated/client.ts --go-output go/bindings_gen.go --mode sync go/main.go
+gowasm-bindgen wasm/main.go --mode sync
 ```
 
 ```typescript
 // Sync mode: blocks main thread
-import { Main } from './client';
-const wasm = await Main.init('./example.wasm');
+import { GoWasm } from './go-wasm';
+const wasm = await GoWasm.init('./wasm.wasm');
 const result = wasm.heavyComputation(data);  // UI frozen!
 ```
 
@@ -115,7 +115,7 @@ Functions are methods on a class instance, but not true object-oriented:
 
 ```typescript
 // Current: methods on a WASM instance class
-const wasm = await Main.init('./worker.js');
+const wasm = await GoWasm.init('./worker.js');
 const user = await wasm.createUser("Alice", 30);
 const name = await wasm.getUserName(user);
 
@@ -156,13 +156,23 @@ func GetValue() interface{} {
 
 **Mitigation:** Use concrete types whenever possible. Define structs for complex returns.
 
-### No Integrated Build Toolchain
+### Integrated Build
 
-Rust has `wasm-pack` for a complete workflow. gowasm-bindgen is just the type generator:
+gowasm-bindgen now includes a complete build workflow similar to Rust's `wasm-pack`:
+
+```bash
+# Single command: generate bindings, copy runtime, compile WASM
+gowasm-bindgen wasm/main.go
+
+# Equivalent to:
+# 1. Generate TypeScript client and Go bindings
+# 2. Copy wasm_exec.js from TinyGo/Go installation
+# 3. Compile WASM with TinyGo (or Go with --compiler go)
+```
 
 | Rust | Go |
 |------|-----|
-| `wasm-pack build` | `tinygo build` + `gowasm-bindgen` + manual setup |
+| `wasm-pack build` | `gowasm-bindgen main.go` |
 
 ## Comparison with Rust wasm-bindgen
 
@@ -178,7 +188,7 @@ Rust has `wasm-pack` for a complete workflow. gowasm-bindgen is just the type ge
 | Promises/async | ✅ | ✅ (default) |
 | Error handling | ✅ Result<T,E> throws | ✅ (T, error) throws |
 | JS imports | ✅ | ❌ |
-| Build toolchain | ✅ wasm-pack | ❌ |
+| Build toolchain | ✅ wasm-pack | ✅ integrated |
 | Normal function syntax | ❌ Requires annotations | ✅ No annotations needed |
 
 ## Why Use gowasm-bindgen Anyway?
@@ -201,8 +211,8 @@ Potential improvements (contributions welcome):
 - [x] Typed array detection and generation
 - [x] Void callback support (sync mode)
 - [x] Void callback support in worker mode (fire-and-forget)
+- [x] `wasm-pack`-style CLI for complete workflow
 - [ ] Callbacks with return values (`func(T) bool`, etc.)
-- [ ] `wasm-pack`-style CLI for complete workflow
 
 ## References
 

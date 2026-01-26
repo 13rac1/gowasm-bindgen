@@ -1,22 +1,26 @@
-.PHONY: all build generate clean
+.PHONY: all build dist website clean
 
-DIST = ../../website/static/examples/image-processing
-GO_SRC = go
+GENERATED = generated
+DIST = dist
+GO_SRC = image
 
-all: build
+all: dist
 
-generate:
-	../../bin/gowasm-bindgen \
-		--ts-output $(DIST)/client.ts \
-		--go-output $(GO_SRC)/bindings_gen.go \
-		--mode sync \
-		$(GO_SRC)/main.go
+# Full build: generate bindings, copy runtime, compile WASM
+build:
+	go run ../../main.go --output $(GENERATED) $(GO_SRC)/main.go
 
-build: generate
+# Build dist directory for serving
+dist: build
 	mkdir -p $(DIST)
-	cp "$$(tinygo env TINYGOROOT)/targets/wasm_exec.js" $(DIST)/
-	tinygo build -o $(DIST)/image.wasm -target wasm -no-debug ./$(GO_SRC)/
+	cp $(GENERATED)/worker.js $(GENERATED)/$(GO_SRC).wasm $(GENERATED)/wasm_exec.js $(DIST)/
+	npx esbuild src/demo.ts --bundle --outfile=$(DIST)/demo.js
+
+# Copy to website static directory
+website: dist
+	mkdir -p ../../website/static/examples/image-processing
+	cp $(DIST)/* ../../website/static/examples/image-processing/
 
 clean:
-	rm -rf $(DIST)
+	rm -rf $(GENERATED) $(DIST)
 	rm -f $(GO_SRC)/bindings_gen.go

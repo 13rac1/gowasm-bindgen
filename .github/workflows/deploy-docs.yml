@@ -45,18 +45,25 @@ jobs:
         with:
           tinygo-version: '0.40.0'
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
       - name: Build gowasm-bindgen
         run: go build -o bin/gowasm-bindgen .
 
       - name: Build image processing example
         run: |
           cd examples/image-processing
-          make build
+          npm install
+          make website
 
       - name: Build js-sandbox example
         run: |
           cd examples/js-sandbox
-          make build
+          npm install
+          make website
 
       - name: Build Hugo site
         run: |

@@ -23,7 +23,7 @@ go install github.com/13rac1/gowasm-bindgen@latest
 
 ### 1. Write Go Functions
 
-Create `main.go`:
+Create `wasm/main.go`:
 
 ```go
 package main
@@ -44,45 +44,25 @@ func main() {
 }
 ```
 
-### 2. Generate Bindings
+### 2. Build Everything
 
 ```bash
-gowasm-bindgen main.go --ts-output client.ts --go-output bindings_gen.go
+gowasm-bindgen wasm/main.go
 ```
 
-This creates:
-- `client.ts` - TypeScript client with full types
-- `worker.js` - Web Worker for non-blocking calls
-- `bindings_gen.go` - Go WASM wrapper functions
+This single command:
+- Generates `generated/go-wasm.ts` - TypeScript client with full types
+- Generates `generated/worker.js` - Web Worker for non-blocking calls
+- Generates `wasm/bindings_gen.go` - Go WASM wrapper functions
+- Copies `generated/wasm_exec.js` - Go runtime from TinyGo
+- Compiles `generated/wasm.wasm` - Optimized WASM binary (~200KB)
 
-### 3. Build WASM
-
-With TinyGo (smaller binary, ~90KB gzipped):
-```bash
-tinygo build -o example.wasm -target wasm .
-```
-
-Or with standard Go (~600KB gzipped):
-```bash
-GOOS=js GOARCH=wasm go build -o example.wasm .
-```
-
-### 4. Copy Runtime
-
-```bash
-# TinyGo
-cp "$(tinygo env TINYGOROOT)/targets/wasm_exec.js" .
-
-# Standard Go
-cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" .
-```
-
-### 5. Use in TypeScript
+### 3. Use in TypeScript
 
 ```typescript
-import { GoMain } from './client';
+import { GoWasm } from './generated/go-wasm';
 
-const wasm = await GoMain.init('./worker.js');
+const wasm = await GoWasm.init('./worker.js');
 
 const greeting = await wasm.greet('World');
 console.log(greeting);  // "Hello, World!"
@@ -93,39 +73,58 @@ console.log(sum);  // 5
 wasm.terminate();  // Clean up when done
 ```
 
+### Build Options
+
+```bash
+# Generate only (skip WASM compilation)
+gowasm-bindgen wasm/main.go --no-build
+
+# Custom output directory
+gowasm-bindgen wasm/main.go --output build/
+
+# Use standard Go instead of TinyGo (larger binary, ~2.4MB)
+gowasm-bindgen wasm/main.go --compiler go
+
+# Synchronous mode (blocks main thread, no Web Worker)
+gowasm-bindgen wasm/main.go --mode sync
+```
+
 ## Project Structure
 
 A typical project looks like:
 
 ```
 my-project/
-├── go/
+├── wasm/
 │   ├── main.go           # Your Go code
 │   └── bindings_gen.go   # Generated (gitignore)
 ├── src/
 │   └── app.ts            # Your TypeScript code
-├── dist/
-│   ├── example.wasm      # Compiled WASM
-│   ├── client.ts         # Generated TypeScript
+├── generated/            # gowasm-bindgen output (gitignore)
+│   ├── wasm.wasm         # Compiled WASM
+│   ├── go-wasm.ts        # Generated TypeScript client
 │   ├── worker.js         # Generated Web Worker
 │   └── wasm_exec.js      # Go runtime
+├── dist/                 # Final bundled output (gitignore)
+│   └── app.js            # Bundled TypeScript
 └── Makefile              # Build automation
 ```
 
 ## Example Makefile
 
 ```makefile
-.PHONY: build generate
+.PHONY: build generate clean
 
+# Full build (default)
+build:
+	gowasm-bindgen wasm/main.go
+
+# Generate only (no WASM compilation)
 generate:
-	gowasm-bindgen go/main.go \
-		--ts-output dist/client.ts \
-		--go-output go/bindings_gen.go \
-		--wasm-url example.wasm
+	gowasm-bindgen wasm/main.go --no-build
 
-build: generate
-	cp "$$(tinygo env TINYGOROOT)/targets/wasm_exec.js" dist/
-	tinygo build -o dist/example.wasm -target wasm -opt=z -no-debug ./go/
+clean:
+	rm -rf generated wasm/bindings_gen.go
 ```
 
 ## Next Steps

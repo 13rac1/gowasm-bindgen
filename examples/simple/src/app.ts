@@ -1,4 +1,4 @@
-import { Main } from '../generated/client';
+import { GoWasm } from '../generated/go-wasm';
 
 /**
  * Type-safe DOM element accessor.
@@ -123,12 +123,12 @@ async function withErrorHandlingAsync(resultElementId: string, fn: () => Promise
  * 4. Set up UI after WASM is ready
  */
 
-let wasm: Main;
+let wasm: GoWasm;
 
 async function initWasm(): Promise<void> {
   try {
     // Initialize the WASM module in a Web Worker (non-blocking)
-    wasm = await Main.init('worker.js');
+    wasm = await GoWasm.init('worker.js');
 
     // Update UI to show WASM is ready
     const statusElement = getElement("status", HTMLElement);

@@ -5,7 +5,7 @@ weight: 2
 
 # JavaScript Sandbox Demo
 
-Securely execute untrusted JavaScript using [Goja](https://github.com/dop251/goja)—a JavaScript interpreter written in Go—compiled to WebAssembly.
+Securely execute untrusted JavaScript using [Goja](https://github.com/dop251/goja)--a JavaScript interpreter written in Go--compiled to WebAssembly.
 
 **Use case:** Run user-provided scripts in complete isolation, with no access to DOM, network, or browser APIs.
 
@@ -174,97 +174,7 @@ console.log("doubled:", doubled.join(", "));
   </div>
 </div>
 
-<script src="wasm_exec.js"></script>
-<script type="module">
-const wasmUrl = 'goja.wasm';
-let wasm = null;
-
-const statusEl = document.getElementById('status');
-const runBtn = document.getElementById('run-btn');
-const codeInput = document.getElementById('code-input');
-const logsOutput = document.getElementById('logs-output');
-const resultOutput = document.getElementById('result-output');
-const errorSection = document.getElementById('error-section');
-const errorOutput = document.getElementById('error-output');
-
-// Initialize WASM
-async function initWasm() {
-  try {
-    const go = new Go();
-    const result = await WebAssembly.instantiateStreaming(fetch(wasmUrl), go.importObject);
-    go.run(result.instance);
-
-    // Check that runJS is available
-    if (typeof runJS === 'undefined') {
-      throw new Error('WASM runJS function not exported');
-    }
-
-    statusEl.textContent = 'Sandbox ready! Enter JavaScript code and click Run.';
-    statusEl.className = 'status ready';
-    runBtn.disabled = false;
-    wasm = { runJS };
-  } catch (err) {
-    statusEl.textContent = 'Error loading WASM: ' + err.message;
-    statusEl.className = 'status error';
-    console.error(err);
-  }
-}
-
-// Run code in Goja
-function runCode() {
-  if (!wasm) return;
-
-  const code = codeInput.value;
-
-  runBtn.disabled = true;
-  runBtn.textContent = 'Running...';
-
-  // Small delay to update UI
-  setTimeout(() => {
-    try {
-      const output = wasm.runJS(code);
-
-      // Display logs
-      logsOutput.textContent = output.logs || '(no console output)';
-
-      // Display result
-      resultOutput.textContent = output.result || '(undefined)';
-
-      // Display error if any
-      if (output.errorMsg) {
-        errorSection.style.display = 'block';
-        errorOutput.textContent = output.errorMsg;
-      } else {
-        errorSection.style.display = 'none';
-      }
-    } catch (err) {
-      errorSection.style.display = 'block';
-      errorOutput.textContent = err.message;
-      logsOutput.textContent = '(execution failed)';
-      resultOutput.textContent = '-';
-    }
-
-    runBtn.disabled = false;
-    runBtn.textContent = 'Run in Sandbox';
-  }, 10);
-}
-
-// Event listeners
-runBtn.addEventListener('click', runCode);
-
-// Ctrl+Enter to run
-codeInput.addEventListener('keydown', (e) => {
-  if (e.ctrlKey && e.key === 'Enter') {
-    e.preventDefault();
-    if (!runBtn.disabled) {
-      runCode();
-    }
-  }
-});
-
-// Initialize
-initWasm();
-</script>
+<script src="demo.js"></script>
 {{< /rawhtml >}}
 
 ## When To Use This
@@ -341,9 +251,9 @@ export interface RunJSResult {
   errorMsg: string;
 }
 
-export class Main {
-  static async init(wasmSource: string | BufferSource): Promise<Main>;
-  runJS(code: string): RunJSResult;
+export class GoGoja {
+  static async init(workerUrl: string): Promise<GoGoja>;
+  runJS(code: string): Promise<RunJSResult>;
 }
 ```
 
@@ -367,5 +277,5 @@ The WASM file is cached after first load.
 
 ## Source Code
 
-- [Go implementation](https://github.com/13rac1/gowasm-bindgen/tree/main/examples/js-sandbox/go/main.go)
+- [Go implementation](https://github.com/13rac1/gowasm-bindgen/tree/main/examples/js-sandbox/goja/main.go)
 - [Full example](https://github.com/13rac1/gowasm-bindgen/tree/main/examples/js-sandbox)

@@ -8,78 +8,91 @@ weight: 10
 ## Usage
 
 ```
-gowasm-bindgen <source.go> --ts-output <file> [options]
+gowasm-bindgen <source.go> [options]
 ```
 
-## Required Flags
+By default, gowasm-bindgen generates bindings, copies the runtime, and compiles WASM in one step.
 
-| Flag | Description |
-|------|-------------|
-| `-t, --ts-output FILE` | TypeScript client output path |
-
-## Optional Flags
+## Flags
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `-g, --go-output FILE` | (none) | Go bindings output path |
+| `-o, --output DIR` | `generated` | Output directory for all artifacts |
+| `--no-build` | false | Skip WASM compilation (generate only) |
+| `--compiler NAME` | `tinygo` | Compiler: `tinygo` or `go` |
 | `-m, --mode MODE` | `worker` | Generation mode: `sync` or `worker` |
 | `-c, --class-name NAME` | `Go<DirName>` | TypeScript class name |
-| `-w, --wasm-url URL` | `<dirname>.wasm` | WASM URL in generated fetch() |
+| `--optimize` | true | Enable size optimizations (tinygo only) |
 | `-v, --verbose` | false | Enable debug output to stderr |
 
 ## Examples
 
-### Worker Mode (Default)
+### Full Build (Default)
 
-Generates async, non-blocking API using Web Workers:
+Generates bindings, copies runtime, and compiles WASM:
 
 ```bash
-gowasm-bindgen main.go --ts-output client.ts --go-output bindings_gen.go
+gowasm-bindgen wasm/main.go
 ```
 
 Creates:
-- `client.ts` - TypeScript client with Promise-based API
-- `worker.js` - Web Worker entry point
-- `bindings_gen.go` - Go WASM wrapper functions
+- `generated/go-wasm.ts` - TypeScript client (kebab-case from class name)
+- `generated/worker.js` - Web Worker entry point
+- `generated/wasm_exec.js` - Go runtime (copied from TinyGo)
+- `generated/wasm.wasm` - Compiled WASM binary
+- `wasm/bindings_gen.go` - Go WASM wrapper functions
+
+### Generate Only
+
+Skip WASM compilation (useful for CI or custom build pipelines):
+
+```bash
+gowasm-bindgen wasm/main.go --no-build
+```
+
+### Custom Output Directory
+
+```bash
+gowasm-bindgen wasm/main.go --output build/
+```
+
+### Standard Go Compiler
+
+For larger binary with full Go compatibility:
+
+```bash
+gowasm-bindgen wasm/main.go --compiler go
+```
 
 ### Sync Mode
 
-Generates synchronous API that runs on main thread:
+Generates synchronous API that runs on main thread (blocks UI):
 
 ```bash
-gowasm-bindgen main.go --ts-output client.ts --go-output bindings_gen.go --mode sync
+gowasm-bindgen wasm/main.go --mode sync
 ```
 
 Creates:
-- `client.ts` - TypeScript client with synchronous methods
-- `bindings_gen.go` - Go WASM wrapper functions
+- `generated/go-wasm.ts` - TypeScript client with synchronous methods
+- `wasm/bindings_gen.go` - Go WASM wrapper functions
 
 No `worker.js` is generated in sync mode.
-
-### Custom WASM URL
-
-For monorepos or CDN deployment:
-
-```bash
-gowasm-bindgen main.go --ts-output client.ts --wasm-url dist/app.wasm
-```
-
-The generated `worker.js` will load WASM from `dist/app.wasm` instead of the default.
 
 ### Custom Class Name
 
 The default class name is derived from the directory: `Go` + TitleCase(dirname).
 
-| Directory | Default Class Name |
-|-----------|-------------------|
-| `wasm/` | `GoWasm` |
-| `image-wasm/` | `GoImageWasm` |
-| `go-calculator/` | `GoCalculator` |
+| Directory | Default Class Name | TypeScript File |
+|-----------|-------------------|-----------------|
+| `wasm/` | `GoWasm` | `go-wasm.ts` |
+| `image-wasm/` | `GoImageWasm` | `go-image-wasm.ts` |
+| `go/` | `Go` | `go.ts` |
 
 Override with `--class-name`:
 
 ```bash
-gowasm-bindgen wasm/main.go --ts-output client.ts --class-name ImageProcessor
+gowasm-bindgen wasm/main.go --class-name ImageProcessor
+# Creates: generated/image-processor.ts with class ImageProcessor
 ```
 
 ### Debug Output
@@ -87,25 +100,14 @@ gowasm-bindgen wasm/main.go --ts-output client.ts --class-name ImageProcessor
 Troubleshoot generation issues:
 
 ```bash
-gowasm-bindgen main.go --ts-output client.ts --verbose
-```
-
-Outputs to stderr:
-```
-[DEBUG] Source file: main.go
-[DEBUG] Package: main
-[DEBUG] Found 5 exported function(s):
-  - Greet
-  - Add
-  - FormatUser
-  ...
+gowasm-bindgen main.go --verbose
 ```
 
 ## Output Files
 
-### client.ts
+### TypeScript Client
 
-The generated TypeScript client exports a class with a name derived from the directory (or set via `--class-name`):
+The generated TypeScript client exports a class:
 
 ```typescript
 // Worker mode (from wasm/ directory)
@@ -124,21 +126,11 @@ export class GoWasm {
 
 ### worker.js
 
-Web Worker script that loads and runs WASM (worker mode only):
-
-```javascript
-importScripts('./wasm_exec.js');
-const go = new Go();
-fetch('./module.wasm')  // or custom --wasm-url
-  .then(response => response.arrayBuffer())
-  .then(bytes => WebAssembly.instantiate(bytes, go.importObject))
-  .then(result => { go.run(result.instance); });
-// ... message handling
-```
+Web Worker script that loads and runs WASM (worker mode only).
 
 ### bindings_gen.go
 
-Go WASM wrapper functions that register your exports:
+Go WASM wrapper functions with `//go:build js && wasm` tag:
 
 ```go
 //go:build js && wasm
@@ -152,22 +144,24 @@ func init() {
 }
 ```
 
+### wasm_exec.js
+
+Go runtime copied from your TinyGo or Go installation.
+
 ## Build Workflow
 
-Typical build sequence:
+With the default settings, a single command does everything:
 
 ```bash
-# 1. Generate bindings
-gowasm-bindgen main.go --ts-output dist/client.ts --go-output bindings_gen.go
-
-# 2. Copy wasm_exec.js (TinyGo)
-cp "$(tinygo env TINYGOROOT)/targets/wasm_exec.js" dist/
-
-# 3. Build WASM
-tinygo build -o dist/main.wasm -target wasm .
-
-# 4. Build TypeScript
-npx tsc
+gowasm-bindgen wasm/main.go
 ```
 
-Or use a Makefile - see [Getting Started]({{< relref "/docs/getting-started" >}}).
+For more control, use `--no-build` and run compilation separately:
+
+```bash
+# Generate bindings only
+gowasm-bindgen wasm/main.go --no-build
+
+# Compile with custom flags
+tinygo build -o generated/wasm.wasm -target wasm -opt=2 ./wasm/
+```

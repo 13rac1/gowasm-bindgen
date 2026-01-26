@@ -1,60 +1,38 @@
-.PHONY: all build test generate generate-sync typecheck verify serve clean setup format lint check dist
+.PHONY: all build test generate generate-sync typecheck verify serve clean format lint check dist
 
 # Directories
-GO_SRC := go
+GO_SRC := wasm
 SRC := src
-GENERATED := generated
 PUBLIC := public
+GENERATED := generated
 DIST := dist
 
-# Build WASM, generate types, and verify
-all: test setup generate build typecheck verify dist
+# Build everything: test, generate, compile WASM, verify types, bundle for serving
+all: test build typecheck verify dist
 
 # Run Go unit tests
 test:
 	go test -v ./$(GO_SRC)/...
 
-# Copy wasm_exec.js from TinyGo installation
-setup:
-	cp "$$(tinygo env TINYGOROOT)/targets/wasm_exec.js" .
-
-# Build the WASM binary with TinyGo (optimized for size)
+# Full build: generate bindings, copy runtime, compile WASM
 build:
-	tinygo build -o $(DIST)/example.wasm \
-		-target wasm \
-		-opt=z \
-		-no-debug \
-		-panic=trap \
-		./$(GO_SRC)/
+	go run ../../main.go --output $(GENERATED) $(GO_SRC)/main.go
 
-# Debug build with TinyGo (larger but has debug info and panic messages)
-build-debug:
-	tinygo build -o $(DIST)/example.wasm -target wasm ./$(GO_SRC)/
-
-# Alternative: Build with standard Go (produces ~2.4MB binary)
-build-go:
-	GOOS=js GOARCH=wasm go build -o $(DIST)/example.wasm ./$(GO_SRC)/
-
-setup-go:
-	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" .
-
-# Generate TypeScript client with Web Worker (default - async, non-blocking)
+# Generate only (skip WASM compilation)
 generate:
-	@mkdir -p $(GENERATED)
-	go run ../../main.go \
-		--ts-output $(GENERATED)/client.ts \
-		--go-output $(GO_SRC)/bindings_gen.go \
-		--wasm-url example.wasm \
-		$(GO_SRC)/main.go
+	go run ../../main.go --output $(GENERATED) --no-build $(GO_SRC)/main.go
 
 # Generate synchronous API (blocks main thread)
 generate-sync:
-	@mkdir -p $(GENERATED)
-	go run ../../main.go \
-		--ts-output $(GENERATED)/client.ts \
-		--go-output $(GO_SRC)/bindings_gen.go \
-		--mode sync \
-		$(GO_SRC)/main.go
+	go run ../../main.go --output $(GENERATED) --no-build --mode sync $(GO_SRC)/main.go
+
+# Build with standard Go (larger binary, ~2.4MB)
+build-go:
+	go run ../../main.go --output $(GENERATED) --compiler go $(GO_SRC)/main.go
+
+# Build without optimizations (larger but has debug info)
+build-debug:
+	go run ../../main.go --output $(GENERATED) --optimize=false $(GO_SRC)/main.go
 
 # Type-check TypeScript (strict verification that generated types work)
 typecheck:
@@ -64,11 +42,10 @@ typecheck:
 verify:
 	npx tsx --test $(SRC)/verify_test.ts
 
-# Build dist directory with runtime artifacts for serving
-dist: setup generate build
-	@mkdir -p $(DIST)
-	cp wasm_exec.js $(DIST)/
-	cp $(GENERATED)/worker.js $(DIST)/
+# Build dist directory for serving
+dist: build
+	mkdir -p $(DIST)
+	cp $(GENERATED)/worker.js $(GENERATED)/$(GO_SRC).wasm $(GENERATED)/wasm_exec.js $(DIST)/
 	cp $(PUBLIC)/index.html $(DIST)/
 	npx esbuild $(SRC)/app.ts --bundle --outfile=$(DIST)/app.js
 
@@ -82,7 +59,7 @@ format:
 	gofmt -w $(GO_SRC)/
 
 # Lint Go and TypeScript code
-lint: generate
+lint: build
 	GOOS=js GOARCH=wasm golangci-lint run ./$(GO_SRC)/...
 	npx tsc --noEmit --project tsconfig.json
 
@@ -91,7 +68,5 @@ check: format lint
 
 # Clean generated files
 clean:
-	rm -rf $(DIST)
-	rm -rf $(GENERATED)
-	rm -f wasm_exec.js
+	rm -rf $(GENERATED) $(DIST)
 	rm -f $(GO_SRC)/bindings_gen.go

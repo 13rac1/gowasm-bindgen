@@ -6,17 +6,19 @@ import (
 )
 
 // DeriveClassName generates a TypeScript class name from a directory name.
-// It prepends "Go" and converts to TitleCase, unless the name already starts with "Go".
+// It prepends "Go" and converts to TitleCase, unless the directory name
+// is "go" or starts with "go-" or "go_" (to avoid "GoGoWasm" from "go-wasm").
 func DeriveClassName(dirName string) string {
 	if dirName == "" || dirName == "." {
 		return "GoMain"
 	}
 
 	titleCased := toTitleCase(dirName)
+	lower := strings.ToLower(dirName)
 
-	// Don't duplicate "Go" prefix
-	if strings.HasPrefix(strings.ToLower(titleCased), "go") {
-		return strings.ToUpper(titleCased[:1]) + titleCased[1:]
+	// Don't duplicate "Go" prefix for directories like "go", "go-wasm", "go_utils"
+	if lower == "go" || strings.HasPrefix(lower, "go-") || strings.HasPrefix(lower, "go_") {
+		return titleCased
 	}
 
 	return "Go" + titleCased

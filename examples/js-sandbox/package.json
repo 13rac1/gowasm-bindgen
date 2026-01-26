@@ -1,0 +1,9 @@
+{
+  "private": true,
+  "scripts": {
+    "build": "make"
+  },
+  "devDependencies": {
+    "esbuild": "^0.20.0"
+  }
+}

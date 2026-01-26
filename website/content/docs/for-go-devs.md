@@ -47,8 +47,10 @@ gowasm-bindgen uses **source-based type inference** - it parses your Go source f
 No test files, annotations, or runtime analysis required. Just point it at your Go source file.
 
 ```bash
-gowasm-bindgen main.go --ts-output client.ts --go-output bindings_gen.go
+gowasm-bindgen wasm/main.go
 ```
+
+This single command generates bindings, copies the runtime, and compiles WASM.
 
 ## TinyGo vs Standard Go
 
@@ -71,11 +73,11 @@ See the [TinyGo Language Support](https://tinygo.org/docs/reference/lang-support
 **When to use Standard Go**: If your code uses unsupported features, or you need full `reflect` capabilities for JSON marshaling complex types, use standard Go and accept the larger binary.
 
 ```bash
-# TinyGo (smaller binaries, some limitations)
-tinygo build -o dist/example.wasm -target wasm -opt=z -no-debug -panic=trap ./go/
+# TinyGo (default) - smaller binaries, some limitations
+gowasm-bindgen wasm/main.go
 
-# Standard Go (larger but full compatibility)
-GOOS=js GOARCH=wasm go build -o dist/example.wasm ./go/
+# Standard Go - larger but full compatibility
+gowasm-bindgen wasm/main.go --compiler go
 ```
 
 ## Writing Go Functions for WASM
@@ -283,9 +285,11 @@ func Filter(items []string, predicate func(string) bool) []string
 
 When you run gowasm-bindgen, it generates:
 
-1. **TypeScript Client** (`client.ts`): Type-safe API for TypeScript
+1. **TypeScript Client** (`<class-name>.ts`): Type-safe API (e.g., `go-wasm.ts` for class `GoWasm`)
 2. **Web Worker** (`worker.js`): Loads and runs WASM in background thread
-3. **Go Bindings** (`bindings_gen.go`): Handles `js.Value` conversions automatically
+3. **Go Runtime** (`wasm_exec.js`): Copied from your TinyGo/Go installation
+4. **WASM Binary** (`wasm.wasm`): Compiled WebAssembly
+5. **Go Bindings** (`bindings_gen.go`): Handles `js.Value` conversions (in source directory)
 
 The Go bindings file registers your functions and handles all the `js.Value` marshaling:
 
@@ -311,24 +315,19 @@ func init() {
 ## Workflow
 
 1. **Write Go functions** with normal signatures:
-   ```bash
-   # go/main.go
+   ```go
+   // wasm/main.go
    func Greet(name string) string { ... }
    ```
 
-2. **Generate bindings**:
+2. **Build everything** with one command:
    ```bash
-   gowasm-bindgen --ts-output generated/client.ts --go-output go/bindings_gen.go go/main.go
+   gowasm-bindgen wasm/main.go
    ```
 
-3. **Build WASM** (include the generated bindings):
-   ```bash
-   tinygo build -o dist/example.wasm -target wasm ./go/
-   ```
-
-4. **Use in TypeScript**:
+3. **Use in TypeScript**:
    ```typescript
-   import { GoWasm } from './client';
+   import { GoWasm } from './generated/go-wasm';
    const wasm = await GoWasm.init('./worker.js');
    const result = await wasm.greet('World');
    ```
@@ -346,7 +345,7 @@ func init() {
 gowasm-bindgen generates a TypeScript class with a name derived from the directory (e.g., `wasm/` → `GoWasm`):
 
 ```typescript
-// Worker mode (default): generated client.ts
+// Worker mode (default): generated go-wasm.ts
 export class GoWasm {
   static async init(workerUrl: string): Promise<GoWasm>;
   greet(name: string): Promise<string>;
@@ -354,7 +353,7 @@ export class GoWasm {
   terminate(): void;
 }
 
-// Sync mode (-m sync): generated client.ts
+// Sync mode (-m sync): generated go-wasm.ts
 export class GoWasm {
   static async init(wasmSource: string | BufferSource): Promise<GoWasm>;
   greet(name: string): string;  // No Promise - synchronous
@@ -367,7 +366,7 @@ The sync mode `init()` accepts either a URL string (browser) or `BufferSource` (
 Your TypeScript users import and use it:
 
 ```typescript
-import { GoWasm } from './generated/client';
+import { GoWasm } from './generated/go-wasm';
 
 const wasm = await GoWasm.init('./worker.js');
 const result = await wasm.greet('World');
@@ -378,7 +377,7 @@ wasm.terminate();
 
 ```
 your-project/
-├── go/                   # All Go code
+├── wasm/                 # All Go code
 │   ├── main.go           # Your WASM implementation
 │   ├── main_test.go      # Optional unit tests
 │   └── bindings_gen.go   # Generated Go bindings (gitignored)
@@ -386,11 +385,11 @@ your-project/
 │   └── app.ts            # TypeScript frontend
 ├── public/               # Static assets
 │   └── index.html
-├── generated/            # Generated TS/JS (gitignored)
-│   ├── client.ts         # Generated TypeScript class API
-│   └── worker.js         # Generated Web Worker wrapper
-└── dist/                 # Build output (gitignored)
-    └── example.wasm      # Compiled WASM
+└── generated/            # Generated output (gitignored)
+    ├── go-wasm.ts        # Generated TypeScript client
+    ├── worker.js         # Generated Web Worker wrapper
+    ├── wasm_exec.js      # Go runtime (copied)
+    └── wasm.wasm         # Compiled WASM
 ```
 
 ## Complete Example
