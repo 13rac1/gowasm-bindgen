@@ -8,23 +8,23 @@ weight: 10
 ## Usage
 
 ```
-gowasm-bindgen <source.go> --output <file> [options]
+gowasm-bindgen <source.go> --ts-output <file> [options]
 ```
 
 ## Required Flags
 
 | Flag | Description |
 |------|-------------|
-| `--output FILE` | TypeScript client output path |
+| `-t, --ts-output FILE` | TypeScript client output path |
 
 ## Optional Flags
 
 | Flag | Default | Description |
 |------|---------|-------------|
-| `--go-output FILE` | (none) | Go bindings output path |
-| `--sync` | false | Generate synchronous API (default: worker mode) |
-| `--wasm-path PATH` | `module.wasm` | WASM file path in worker.js |
-| `--verbose` | false | Enable debug output to stderr |
+| `-g, --go-output FILE` | (none) | Go bindings output path |
+| `-m, --mode MODE` | `worker` | Generation mode: `sync` or `worker` |
+| `-w, --wasm-url URL` | `<dirname>.wasm` | WASM URL in generated fetch() |
+| `-v, --verbose` | false | Enable debug output to stderr |
 
 ## Examples
 
@@ -33,7 +33,7 @@ gowasm-bindgen <source.go> --output <file> [options]
 Generates async, non-blocking API using Web Workers:
 
 ```bash
-gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go
+gowasm-bindgen main.go --ts-output client.ts --go-output bindings_gen.go
 ```
 
 Creates:
@@ -46,7 +46,7 @@ Creates:
 Generates synchronous API that runs on main thread:
 
 ```bash
-gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go --sync
+gowasm-bindgen main.go --ts-output client.ts --go-output bindings_gen.go --mode sync
 ```
 
 Creates:
@@ -55,22 +55,22 @@ Creates:
 
 No `worker.js` is generated in sync mode.
 
-### Custom WASM Path
+### Custom WASM URL
 
 For monorepos or CDN deployment:
 
 ```bash
-gowasm-bindgen main.go --output client.ts --wasm-path dist/app.wasm
+gowasm-bindgen main.go --ts-output client.ts --wasm-url dist/app.wasm
 ```
 
-The generated `worker.js` will load WASM from `dist/app.wasm` instead of `module.wasm`.
+The generated `worker.js` will load WASM from `dist/app.wasm` instead of the default.
 
 ### Debug Output
 
 Troubleshoot generation issues:
 
 ```bash
-gowasm-bindgen main.go --output client.ts --verbose
+gowasm-bindgen main.go --ts-output client.ts --verbose
 ```
 
 Outputs to stderr:
@@ -112,7 +112,7 @@ Web Worker script that loads and runs WASM (worker mode only):
 ```javascript
 importScripts('./wasm_exec.js');
 const go = new Go();
-fetch('./module.wasm')  // or custom --wasm-path
+fetch('./module.wasm')  // or custom --wasm-url
   .then(response => response.arrayBuffer())
   .then(bytes => WebAssembly.instantiate(bytes, go.importObject))
   .then(result => { go.run(result.instance); });
@@ -141,7 +141,7 @@ Typical build sequence:
 
 ```bash
 # 1. Generate bindings
-gowasm-bindgen main.go --output dist/client.ts --go-output bindings_gen.go
+gowasm-bindgen main.go --ts-output dist/client.ts --go-output bindings_gen.go
 
 # 2. Copy wasm_exec.js (TinyGo)
 cp "$(tinygo env TINYGOROOT)/targets/wasm_exec.js" dist/

@@ -39,7 +39,7 @@ test-e2e: build
 	# Copy wasm_exec.js from Go installation
 	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" test/e2e/
 	# Generate TypeScript client and Go bindings
-	./bin/gowasm-bindgen --output test/e2e/client.ts --go-output test/e2e/wasm/bindings_gen.go --sync test/e2e/wasm/main.go
+	./bin/gowasm-bindgen --ts-output test/e2e/client.ts --go-output test/e2e/wasm/bindings_gen.go --mode sync test/e2e/wasm/main.go
 	# Build WASM binary (includes generated bindings)
 	GOOS=js GOARCH=wasm go build -o test/e2e/test.wasm ./test/e2e/wasm/
 	# Run TypeScript tests

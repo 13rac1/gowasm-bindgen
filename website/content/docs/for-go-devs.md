@@ -47,7 +47,7 @@ gowasm-bindgen uses **source-based type inference** - it parses your Go source f
 No test files, annotations, or runtime analysis required. Just point it at your Go source file.
 
 ```bash
-gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go
+gowasm-bindgen main.go --ts-output client.ts --go-output bindings_gen.go
 ```
 
 ## TinyGo vs Standard Go

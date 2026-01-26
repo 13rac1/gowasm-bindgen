@@ -51,7 +51,7 @@ jobs:
         run: |
           make build
           cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" test/e2e/
-          ./bin/gowasm-bindgen --output test/e2e/client.ts --go-output test/e2e/wasm/bindings_gen.go --sync test/e2e/wasm/main.go
+          ./bin/gowasm-bindgen --ts-output test/e2e/client.ts --go-output test/e2e/wasm/bindings_gen.go --mode sync test/e2e/wasm/main.go
           GOOS=js GOARCH=wasm go build -o test/e2e/test.wasm ./test/e2e/wasm/
           npx c8 --reporter=lcov --reporter=text npx tsx --test test/e2e/verify_test.ts
 

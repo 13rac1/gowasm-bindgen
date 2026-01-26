@@ -7,9 +7,9 @@ all: build
 
 generate:
 	../../bin/gowasm-bindgen \
-		--output $(DIST)/client.ts \
+		--ts-output $(DIST)/client.ts \
 		--go-output $(GO_SRC)/bindings_gen.go \
-		--sync \
+		--mode sync \
 		$(GO_SRC)/main.go
 
 build: generate

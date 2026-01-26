@@ -117,7 +117,7 @@ void main();
 Make sure you've generated the TypeScript client:
 
 ```bash
-gowasm-bindgen --output generated/client.ts --go-output go/bindings_gen.go go/main.go
+gowasm-bindgen --ts-output generated/client.ts --go-output go/bindings_gen.go go/main.go
 ```
 
 This creates `generated/client.ts`, `generated/worker.js` (by default), and `go/bindings_gen.go` (Go bindings).
@@ -144,10 +144,10 @@ If you see `any`, the Go function might be using `interface{}`. Ask your Go team
 
 ### Want synchronous calls instead of async?
 
-Use the `--sync` flag to generate a synchronous API that runs on the main thread:
+Use the `--mode sync` flag to generate a synchronous API that runs on the main thread:
 
 ```bash
-gowasm-bindgen --output generated/client.ts --go-output go/bindings_gen.go --sync go/main.go
+gowasm-bindgen --ts-output generated/client.ts --go-output go/bindings_gen.go --mode sync go/main.go
 ```
 
 ```typescript
@@ -224,10 +224,10 @@ const result = wasm.greet("World");
 console.log(result);  // Promise { <pending> }
 ```
 
-**Want sync?** Use `--sync` flag for synchronous calls (but this blocks the main thread):
+**Want sync?** Use `--mode sync` flag for synchronous calls (but this blocks the main thread):
 
 ```bash
-gowasm-bindgen --output generated/client.ts --go-output go/bindings_gen.go --sync go/main.go
+gowasm-bindgen --ts-output generated/client.ts --go-output go/bindings_gen.go --mode sync go/main.go
 ```
 
 ```typescript

@@ -22,35 +22,38 @@ func main() {
 
 func run() error {
 	// Parse flags
-	var output string
+	var tsOutput string
 	var goOutput string
-	var sync bool
+	var mode string
 	var verbose bool
-	var wasmPath string
+	var wasmURL string
 
-	flag.StringVar(&output, "output", "", "output TypeScript file path (e.g., client.ts)")
-	flag.StringVar(&goOutput, "go-output", "", "output Go bindings file path (e.g., bindings_gen.go)")
-	flag.BoolVar(&sync, "sync", false, "generate synchronous API (default: worker-based async)")
-	flag.BoolVar(&verbose, "verbose", false, "enable verbose debug output")
-	flag.StringVar(&wasmPath, "wasm-path", "", "WASM file path in generated worker.js (default: <dirname>.wasm)")
+	flag.StringVarP(&tsOutput, "ts-output", "t", "", "TypeScript output file (e.g., client.ts)")
+	flag.StringVarP(&goOutput, "go-output", "g", "", "Go bindings output file (e.g., bindings_gen.go)")
+	flag.StringVarP(&mode, "mode", "m", "worker", "generation mode: 'sync' or 'worker'")
+	flag.BoolVarP(&verbose, "verbose", "v", false, "enable verbose debug output")
+	flag.StringVarP(&wasmURL, "wasm-url", "w", "", "WASM URL in generated fetch() (default: <dirname>.wasm)")
 	flag.Parse()
 
 	// Validate flags
-	usage := "Usage: gowasm-bindgen <source.go> --output client.ts [--go-output bindings_gen.go] [--sync] [--wasm-path module.wasm] [--verbose]"
+	usage := "Usage: gowasm-bindgen <source.go> -t client.ts [-g bindings_gen.go] [-m sync|worker] [-w app.wasm]"
 	if flag.NArg() == 0 {
 		return fmt.Errorf("missing source file argument\n\n%s", usage)
 	}
-	if output == "" {
-		return fmt.Errorf("--output is required\n\n%s", usage)
+	if tsOutput == "" {
+		return fmt.Errorf("-t/--ts-output is required\n\n%s", usage)
+	}
+	if mode != "sync" && mode != "worker" {
+		return fmt.Errorf("--mode must be 'sync' or 'worker', got %q\n\n%s", mode, usage)
 	}
 
 	sourceFile := flag.Arg(0)
 
 	if verbose {
 		fmt.Fprintf(os.Stderr, "[DEBUG] Source file: %s\n", sourceFile)
-		fmt.Fprintf(os.Stderr, "[DEBUG] Output: %s\n", output)
-		fmt.Fprintf(os.Stderr, "[DEBUG] Sync mode: %v\n", sync)
-		fmt.Fprintf(os.Stderr, "[DEBUG] WASM path: %s\n", wasmPath)
+		fmt.Fprintf(os.Stderr, "[DEBUG] TS output: %s\n", tsOutput)
+		fmt.Fprintf(os.Stderr, "[DEBUG] Mode: %s\n", mode)
+		fmt.Fprintf(os.Stderr, "[DEBUG] WASM URL: %s\n", wasmURL)
 	}
 
 	// Check if source file exists
@@ -58,13 +61,13 @@ func run() error {
 		return fmt.Errorf("source file not found: %s", sourceFile)
 	}
 
-	// Derive default WASM path from directory name if not specified
-	if wasmPath == "" {
+	// Derive default WASM URL from directory name if not specified
+	if wasmURL == "" {
 		dirName := filepath.Base(filepath.Dir(sourceFile))
 		if dirName == "." || dirName == "" {
-			wasmPath = "main.wasm"
+			wasmURL = "main.wasm"
 		} else {
-			wasmPath = dirName + ".wasm"
+			wasmURL = dirName + ".wasm"
 		}
 	}
 
@@ -112,17 +115,17 @@ func run() error {
 	}
 
 	// Create output directory if needed
-	if dir := filepath.Dir(output); dir != "." {
+	if dir := filepath.Dir(tsOutput); dir != "." {
 		if err := os.MkdirAll(dir, 0750); err != nil {
 			return fmt.Errorf("creating output directory: %w", err)
 		}
 	}
 
 	// Generate Go bindings if requested
-	// workerMode is true when NOT using sync mode (default is worker mode)
+	// workerMode is true when using worker mode (default)
 	if goOutput != "" {
 		fmt.Printf("\nGenerating Go bindings...\n")
-		workerMode := !sync
+		workerMode := mode == "worker"
 		bindingsCode := generator.GenerateGoBindings(parsed, workerMode)
 
 		if err := os.WriteFile(goOutput, []byte(bindingsCode), 0600); err != nil {
@@ -133,22 +136,22 @@ func run() error {
 	}
 
 	// Generate TypeScript client
-	if sync {
+	if mode == "sync" {
 		if verbose {
 			fmt.Fprintf(os.Stderr, "[DEBUG] Generating sync mode client\n")
 		}
-		return generateSyncOutput(parsed, output)
+		return generateSyncOutput(parsed, tsOutput)
 	}
 
 	if verbose {
 		fmt.Fprintf(os.Stderr, "[DEBUG] Generating worker mode client\n")
 	}
-	return generateWorkerOutput(parsed, output, wasmPath)
+	return generateWorkerOutput(parsed, tsOutput, wasmURL)
 }
 
 func generateSyncOutput(parsed *parser.ParsedFile, output string) error {
 	// Generate TypeScript class-based client
-	content := generator.Generate(parsed)
+	content := generator.Generate(parsed, filepath.Base(output))
 
 	// Write output
 	if err := os.WriteFile(output, []byte(content), 0600); err != nil {
@@ -176,7 +179,7 @@ func generateWorkerOutput(parsed *parser.ParsedFile, output, wasmPath string) er
 	}
 
 	// Generate client.ts
-	clientContent := generator.GenerateClient(parsed)
+	clientContent := generator.GenerateClient(parsed, filepath.Base(output))
 	if err := os.WriteFile(output, []byte(clientContent), 0600); err != nil {
 		return fmt.Errorf("writing client: %w", err)
 	}

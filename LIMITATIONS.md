@@ -11,7 +11,6 @@ gowasm-bindgen generates TypeScript declarations from Go source code. This docum
 ✅ **Typed arrays** - Go `[]byte` maps to TypeScript `Uint8Array` with efficient bulk copy
 ✅ **Void callbacks** - Pass JavaScript functions as callback parameters (void only)
 ✅ **CLI debug output** - `--verbose` flag for troubleshooting
-✅ **Configurable WASM path** - `--wasm-path` for worker.js customization
 ✅ **Node.js support** - Sync mode `init()` accepts `BufferSource` for Node.js
 
 ## Current Limitations
@@ -27,9 +26,9 @@ const wasm = await Main.init('./worker.js');
 const result = await wasm.heavyComputation(data);  // UI stays responsive!
 ```
 
-**Want sync?** Use `--sync` flag to run on the main thread (blocks until complete):
+**Want sync?** Use `--mode sync` flag to run on the main thread (blocks until complete):
 ```bash
-gowasm-bindgen --output generated/client.ts --go-output go/bindings_gen.go --sync go/main.go
+gowasm-bindgen --ts-output generated/client.ts --go-output go/bindings_gen.go --mode sync go/main.go
 ```
 
 ```typescript

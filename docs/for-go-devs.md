@@ -42,7 +42,7 @@ gowasm-bindgen uses **source-based type inference** - it parses your Go source f
 No test files, annotations, or runtime analysis required. Just point it at your Go source file.
 
 ```bash
-gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go
+gowasm-bindgen main.go --ts-output client.ts --go-output bindings_gen.go
 ```
 
 ## TinyGo vs Standard Go
@@ -313,7 +313,7 @@ func init() {
 
 2. **Generate bindings**:
    ```bash
-   gowasm-bindgen --output generated/client.ts --go-output go/bindings_gen.go go/main.go
+   gowasm-bindgen --ts-output generated/client.ts --go-output go/bindings_gen.go go/main.go
    ```
 
 3. **Build WASM** (include the generated bindings):
@@ -349,7 +349,7 @@ export class Main {
   terminate(): void;
 }
 
-// Sync mode (--sync flag): generated client.ts
+// Sync mode (-m sync): generated client.ts
 export class Main {
   static async init(wasmSource: string | BufferSource): Promise<Main>;
   greet(name: string): string;  // No Promise - synchronous

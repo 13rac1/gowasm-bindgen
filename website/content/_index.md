@@ -82,7 +82,7 @@ const greeting = await wasm.greet("World");
 go install github.com/13rac1/gowasm-bindgen@latest
 
 # Generate TypeScript client and Go bindings
-gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go
+gowasm-bindgen main.go --ts-output client.ts --go-output bindings_gen.go
 ```
 
 {{< button href="/docs/getting-started" >}}Get Started{{< /button >}}

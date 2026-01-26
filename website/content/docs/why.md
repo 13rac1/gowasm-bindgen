@@ -111,7 +111,7 @@ func main() {
 Run gowasm-bindgen:
 
 ```bash
-gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go
+gowasm-bindgen main.go --ts-output client.ts --go-output bindings_gen.go
 ```
 
 Use typed TypeScript:

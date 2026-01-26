@@ -71,7 +71,7 @@ wasm.terminate();  // Clean up when done
 
 ### Sync Mode (Opt-in - Blocking)
 
-Use `--sync` flag for synchronous calls that block the main thread:
+Use `--mode sync` flag for synchronous calls that block the main thread:
 
 ```bash
 make generate-sync  # Creates generated/client.ts only (no worker.js)
@@ -137,7 +137,7 @@ make serve  # Build and start server at http://localhost:8080
 2. **Run gowasm-bindgen**:
    ```bash
    gowasm-bindgen go/main.go \
-       --output generated/client.ts \
+       --ts-output generated/client.ts \
        --go-output go/bindings_gen.go
    ```
 

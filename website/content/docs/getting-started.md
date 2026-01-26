@@ -47,7 +47,7 @@ func main() {
 ### 2. Generate Bindings
 
 ```bash
-gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go
+gowasm-bindgen main.go --ts-output client.ts --go-output bindings_gen.go
 ```
 
 This creates:
@@ -119,9 +119,9 @@ my-project/
 
 generate:
 	gowasm-bindgen go/main.go \
-		--output dist/client.ts \
+		--ts-output dist/client.ts \
 		--go-output go/bindings_gen.go \
-		--wasm-path main.wasm
+		--wasm-url main.wasm
 
 build: generate
 	cp "$$(tinygo env TINYGOROOT)/targets/wasm_exec.js" dist/

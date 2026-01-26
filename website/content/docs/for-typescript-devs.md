@@ -88,7 +88,7 @@ await wasm.calculate(5, 3);
 Make sure you've generated the TypeScript client:
 
 ```bash
-gowasm-bindgen --output generated/client.ts --go-output go/bindings_gen.go go/main.go
+gowasm-bindgen --ts-output generated/client.ts --go-output go/bindings_gen.go go/main.go
 ```
 
 ### Worker fails to load
@@ -99,10 +99,10 @@ gowasm-bindgen --output generated/client.ts --go-output go/bindings_gen.go go/ma
 
 ### Want synchronous calls?
 
-Use the `--sync` flag:
+Use the `--mode sync` flag:
 
 ```bash
-gowasm-bindgen --output generated/client.ts --go-output go/bindings_gen.go --sync go/main.go
+gowasm-bindgen --ts-output generated/client.ts --go-output go/bindings_gen.go --mode sync go/main.go
 ```
 
 ```typescript

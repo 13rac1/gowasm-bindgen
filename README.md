@@ -106,15 +106,15 @@ With TinyGo, your WASM binary drops from 2.4MB to **200KB (90KB gzipped)**, and 
 go install github.com/13rac1/gowasm-bindgen@latest
 
 # Generate TypeScript client and Go bindings
-gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go
+gowasm-bindgen main.go --ts-output client.ts --go-output bindings_gen.go
 # Creates: client.ts (async API) + worker.js (Web Worker) + bindings_gen.go (Go wrappers)
 
 # Or generate synchronous API (blocks main thread)
-gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go --sync
+gowasm-bindgen main.go --ts-output client.ts --go-output bindings_gen.go --mode sync
 # Creates: client.ts only (sync API) + bindings_gen.go (Go wrappers)
 
 # Or just TypeScript without Go bindings
-gowasm-bindgen main.go --output client.ts
+gowasm-bindgen main.go --ts-output client.ts
 # Creates: client.ts + worker.js (you write WASM wrappers manually)
 ```
 
@@ -128,7 +128,7 @@ const wasm = await Main.init('./worker.js');
 const greeting = await wasm.greet('World');
 wasm.terminate();
 
-// Sync mode (--sync flag)
+// Sync mode (--mode sync)
 const wasm = await Main.init('./example.wasm');
 const greeting = wasm.greet('World');  // no await needed
 ```
@@ -160,7 +160,7 @@ make serve  # Open http://localhost:8080
 4. Extract return types, supporting structs with JSON tags and (T, error) patterns
 5. Generate `client.ts` with a type-safe TypeScript API
 6. Generate `bindings_gen.go` with WASM wrapper functions that handle type conversions
-7. Generate `worker.js` for async/non-blocking calls (default) or sync mode with `--sync`
+7. Generate `worker.js` for async/non-blocking calls (default) or sync mode with `--mode sync`
 
 No annotations. No build plugins. Just normal Go code.
 
@@ -181,7 +181,7 @@ Primitives, slices, maps, structs (with JSON tags), errors, and pointers. See [T
 
 See [LIMITATIONS.md](LIMITATIONS.md) for a comparison with Rust's wasm-bindgen and current gaps. Highlights:
 
-- Worker mode is default (async Promise-based), use `--sync` for synchronous blocking calls
+- Worker mode is default (async Promise-based), use `--mode sync` for synchronous blocking calls
 - Void callbacks supported (fire-and-forget), no return value callbacks
 - Typed arrays for byte slices, element-by-element for other numeric slices
 - Class-based API (methods on class instances)
