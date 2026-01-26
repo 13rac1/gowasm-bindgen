@@ -2,8 +2,11 @@
 
 [![codecov](https://codecov.io/gh/13rac1/gowasm-bindgen/graph/badge.svg)](https://codecov.io/gh/13rac1/gowasm-bindgen)
 [![Go Report Card](https://goreportcard.com/badge/github.com/13rac1/gowasm-bindgen)](https://goreportcard.com/report/github.com/13rac1/gowasm-bindgen)
+[![Go Reference](https://pkg.go.dev/badge/github.com/13rac1/gowasm-bindgen.svg)](https://pkg.go.dev/github.com/13rac1/gowasm-bindgen)
 
 **Type-safe Go in the browser.**
+
+**[Try the Image Processing Demo](https://13rac1.github.io/gowasm-bindgen/examples/image-processing/)** | **[Try the JS Sandbox](https://13rac1.github.io/gowasm-bindgen/examples/js-sandbox/)**
 
 Generate TypeScript declarations and Go WASM bindings from your Go source code. Ship 90KB gzipped binaries with TinyGo.
 
@@ -108,62 +111,22 @@ gowasm-bindgen main.go --output client.ts
 # Creates: client.ts + worker.js (you write WASM wrappers manually)
 ```
 
-## CLI Reference
-
-```
-gowasm-bindgen <source.go> --output <file> [options]
-
-Required:
-  --output FILE         TypeScript client output path
-
-Options:
-  --go-output FILE      Go bindings output path
-  --sync                Generate synchronous API (default: worker mode)
-  --wasm-path PATH      WASM file path in worker.js (default: "module.wasm")
-  --verbose             Enable debug output to stderr
-```
-
-### Examples
-
-```bash
-# Worker mode (default) - async, non-blocking
-gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go
-
-# Sync mode - direct function calls
-gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go --sync
-
-# Custom WASM path (for monorepos or CDN deployment)
-gowasm-bindgen main.go --output client.ts --wasm-path dist/app.wasm
-
-# Debug output to troubleshoot generation
-gowasm-bindgen main.go --output client.ts --verbose
-```
-
-**Usage in TypeScript:**
+## Usage
 
 ```typescript
-// Worker mode (default) - non-blocking, browser
 import { Main } from './client';
 
+// Worker mode (default) - non-blocking
 const wasm = await Main.init('./worker.js');
-const greeting = await wasm.greet('World');  // runs in worker
-const user = await wasm.formatUser('Alice', 30, true);
+const greeting = await wasm.greet('World');
 wasm.terminate();
 
-// Sync mode (--sync flag) - browser
-import { Main } from './client';
-
-const wasm = await Main.init('./example.wasm');  // URL string
-const greeting = wasm.greet('World');  // sync call (no await)
-
-// Sync mode - Node.js (pass Buffer instead of URL)
-import { readFileSync } from 'fs';
-import { Main } from './client.js';
-
-const wasmBytes = readFileSync('./example.wasm');
-const wasm = await Main.init(wasmBytes);  // BufferSource
-const greeting = wasm.greet('World');
+// Sync mode (--sync flag)
+const wasm = await Main.init('./example.wasm');
+const greeting = wasm.greet('World');  // no await needed
 ```
+
+See the [CLI Reference](https://13rac1.github.io/gowasm-bindgen/docs/cli-reference/) for all options.
 
 ## Get Started
 
@@ -205,12 +168,7 @@ No annotations. No build plugins. Just normal Go code.
 
 ## Supported Types
 
-- **Primitives**: string, int, int8-64, uint, uint8-64, float32/64, bool
-- **Slices**: []T where T is any supported type
-- **Maps**: map[string]T where T is any supported type
-- **Structs**: Custom types with JSON tags for field naming
-- **Errors**: (T, error) return patterns automatically generate error handling
-- **Pointers**: Automatically dereferenced
+Primitives, slices, maps, structs (with JSON tags), errors, and pointers. See [Type Mapping](https://13rac1.github.io/gowasm-bindgen/docs/type-mapping/) for the full conversion table.
 
 ## Limitations
 

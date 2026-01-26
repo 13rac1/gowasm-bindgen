@@ -1,3 +1,4 @@
+// Package validator checks generated Go code for syntax errors.
 package validator
 
 import (

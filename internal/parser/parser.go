@@ -1,3 +1,4 @@
+// Package parser extracts function signatures and types from Go source files.
 package parser
 
 import (
