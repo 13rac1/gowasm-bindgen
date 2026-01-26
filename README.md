@@ -90,7 +90,7 @@ With TinyGo, your WASM binary drops from 2.4MB to **200KB (90KB gzipped)**, and 
 
 ```bash
 # Install
-go install github.com/13rac1/gowasm-bindgen/cmd/gowasm-bindgen@latest
+go install github.com/13rac1/gowasm-bindgen@latest
 
 # Generate TypeScript client and Go bindings
 gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go

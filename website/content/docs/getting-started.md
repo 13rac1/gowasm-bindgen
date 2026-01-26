@@ -16,7 +16,7 @@ Get type-safe Go in your browser in under 5 minutes.
 ## Installation
 
 ```bash
-go install github.com/13rac1/gowasm-bindgen/cmd/gowasm-bindgen@latest
+go install github.com/13rac1/gowasm-bindgen@latest
 ```
 
 ## Quick Example

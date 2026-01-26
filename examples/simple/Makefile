@@ -41,7 +41,7 @@ setup-go:
 # Generate TypeScript client with Web Worker (default - async, non-blocking)
 generate:
 	@mkdir -p $(GENERATED)
-	go run ../cmd/gowasm-bindgen/main.go \
+	go run ../../main.go \
 		--output $(GENERATED)/client.ts \
 		--go-output $(GO_SRC)/bindings_gen.go \
 		--wasm-path example.wasm \
@@ -50,7 +50,7 @@ generate:
 # Generate synchronous API (blocks main thread)
 generate-sync:
 	@mkdir -p $(GENERATED)
-	go run ../cmd/gowasm-bindgen/main.go \
+	go run ../../main.go \
 		--output $(GENERATED)/client.ts \
 		--go-output $(GO_SRC)/bindings_gen.go \
 		--sync \

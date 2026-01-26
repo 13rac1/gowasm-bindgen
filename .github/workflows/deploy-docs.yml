@@ -46,7 +46,7 @@ jobs:
           tinygo-version: '0.40.0'
 
       - name: Build gowasm-bindgen
-        run: go build -o bin/gowasm-bindgen ./cmd/gowasm-bindgen
+        run: go build -o bin/gowasm-bindgen .
 
       - name: Build image processing example
         run: |

@@ -3,7 +3,7 @@ version: 2
 project_name: gowasm-bindgen
 
 builds:
-  - main: ./cmd/gowasm-bindgen
+  - main: .
     binary: gowasm-bindgen
     env:
       - CGO_ENABLED=0

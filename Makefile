@@ -5,7 +5,7 @@ all: check build
 
 # Build the CLI binary
 build:
-	go build -o bin/gowasm-bindgen ./cmd/gowasm-bindgen
+	go build -o bin/gowasm-bindgen .
 
 # Run all tests
 test:
@@ -13,12 +13,12 @@ test:
 
 # Run golangci-lint (excludes examples which needs WASM build tags)
 lint:
-	golangci-lint run ./cmd/... ./internal/...
+	golangci-lint run . ./internal/...
 	GOOS=js GOARCH=wasm golangci-lint run ./examples/...
 
 # Run go vet (excludes examples which needs WASM build tags)
 vet:
-	go vet ./cmd/... ./internal/...
+	go vet . ./internal/...
 	GOOS=js GOARCH=wasm go vet ./examples/...
 
 # Format code with gofmt
