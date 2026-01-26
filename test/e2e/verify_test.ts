@@ -26,4 +26,17 @@ void test("WASM functions with TypeScript types", async () => {
   assert.strictEqual(info.name, "test");
   assert.strictEqual(info.version, 1);
   assert.strictEqual(info.active, true);
+
+  // Test panic recovery - should throw error, not crash WASM
+  assert.throws(
+    () => wasm.triggerPanic(),
+    {
+      name: "Error",
+      message: "panic: intentional panic for testing",
+    }
+  );
+
+  // Verify WASM still works after panic
+  const afterPanic: string = wasm.greet("AfterPanic");
+  assert.strictEqual(afterPanic, "Hello, AfterPanic!");
 });

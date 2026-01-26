@@ -28,6 +28,11 @@ func GetInfo(name string) Info {
 	}
 }
 
+// TriggerPanic always panics to test panic recovery.
+func TriggerPanic() string {
+	panic("intentional panic for testing")
+}
+
 func main() {
 	// Keep the program running to receive JavaScript calls
 	select {}

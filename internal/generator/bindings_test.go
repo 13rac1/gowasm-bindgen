@@ -91,7 +91,7 @@ func MightFail(x int) (string, error) {
 			checks: []func(*testing.T, string){
 				checkContains(`result, err := MightFail(x)`),
 				checkContains(`if err != nil {`),
-				checkContains(`"__error": err.Error()`),
+				checkContains(`ErrorFieldName: err.Error()`),
 				checkContains(`return result`),
 			},
 		},
@@ -237,7 +237,7 @@ func checkPackage(name string) func(*testing.T, string) {
 
 func checkImportSyscallJS(t *testing.T, output string) {
 	t.Helper()
-	if !strings.Contains(output, `import "syscall/js"`) {
+	if !strings.Contains(output, `"syscall/js"`) {
 		t.Error("missing syscall/js import")
 	}
 }
@@ -252,7 +252,7 @@ func checkInitFunction(t *testing.T, output string) {
 func checkFunctionRegistered(jsName, wrapperName string) func(*testing.T, string) {
 	return func(t *testing.T, output string) {
 		t.Helper()
-		want := `js.Global().Set("` + jsName + `", js.FuncOf(` + wrapperName + `))`
+		want := `js.Global().Set("` + jsName + `", recoverFunc(` + wrapperName + `))`
 		if !strings.Contains(output, want) {
 			t.Errorf("function %q not registered correctly, want %q", jsName, want)
 		}
