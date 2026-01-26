@@ -338,7 +338,7 @@ func TestValidateFunctions_MultipleErrors(t *testing.T) {
 	}
 
 	if len(verr.Errors) != 2 {
-		t.Errorf("expected 2 errors, got %d: %v", len(verr.Errors), verr.Errors)
+		t.Errorf("got %d errors, want 2: %v", len(verr.Errors), verr.Errors)
 	}
 }
 

@@ -52,17 +52,35 @@ func TestReturnsObject(t *testing.T) {
 
 // TestReturnsUnion tests extraction of union return type (error|success)
 func TestReturnsUnion(t *testing.T) {
-	result := validate(js.Null(), []js.Value{js.ValueOf("data")})
-	jsResult := result.(js.Value)
+	tests := []struct {
+		name        string
+		input       string
+		wantSuccess bool
+		wantError   string
+	}{
+		{"success case", "data", true, ""},
+		{"error case", "error", false, "validation failed"},
+	}
 
-	if !jsResult.Get("error").IsUndefined() {
-		errMsg := jsResult.Get("error").String()
-		t.Logf("error case: %s", errMsg)
-	} else {
-		success := jsResult.Get("success").Bool()
-		if !success {
-			t.Error("expected success to be true")
-		}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := validate(js.Null(), []js.Value{js.ValueOf(tt.input)})
+			jsResult := result.(js.Value)
+
+			if tt.wantError != "" {
+				got := jsResult.Get("error").String()
+				if got != tt.wantError {
+					t.Errorf("error = %q, want %q", got, tt.wantError)
+				}
+			} else {
+				if !jsResult.Get("error").IsUndefined() {
+					t.Errorf("unexpected error: %s", jsResult.Get("error").String())
+				}
+				if got := jsResult.Get("success").Bool(); got != tt.wantSuccess {
+					t.Errorf("success = %v, want %v", got, tt.wantSuccess)
+				}
+			}
+		})
 	}
 }
 

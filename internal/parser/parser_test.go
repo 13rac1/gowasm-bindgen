@@ -3,6 +3,7 @@ package parser
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 )
 
@@ -573,7 +574,7 @@ func TestGoTypeToJSExtraction(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := GoTypeToJSExtraction(tt.goType, tt.argExpr, tt.workerMode)
 			for _, substr := range tt.contains {
-				if !contains(result, substr) {
+				if !strings.Contains(result, substr) {
 					t.Errorf("GoTypeToJSExtraction() = %q, should contain %q", result, substr)
 				}
 			}
@@ -663,7 +664,7 @@ func TestGoTypeToJSReturn(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := GoTypeToJSReturn(tt.goType, tt.valueExpr)
 			for _, substr := range tt.contains {
-				if !contains(result, substr) {
+				if !strings.Contains(result, substr) {
 					t.Errorf("GoTypeToJSReturn() = %q, should contain %q", result, substr)
 				}
 			}
@@ -703,7 +704,7 @@ func TestCallbackWrapperCode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := callbackWrapperCode(tt.goType, tt.argExpr)
 			for _, substr := range tt.contains {
-				if !contains(result, substr) {
+				if !strings.Contains(result, substr) {
 					t.Errorf("callbackWrapperCode() = %q, should contain %q", result, substr)
 				}
 			}
@@ -743,25 +744,10 @@ func TestWorkerCallbackCode(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			result := workerCallbackCode(tt.goType, tt.argExpr)
 			for _, substr := range tt.contains {
-				if !contains(result, substr) {
+				if !strings.Contains(result, substr) {
 					t.Errorf("workerCallbackCode() = %q, should contain %q", result, substr)
 				}
 			}
 		})
 	}
-}
-
-// contains checks if s contains substr
-func contains(s, substr string) bool {
-	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
-		(len(s) > 0 && len(substr) > 0 && stringContains(s, substr)))
-}
-
-func stringContains(s, substr string) bool {
-	for i := 0; i <= len(s)-len(substr); i++ {
-		if s[i:i+len(substr)] == substr {
-			return true
-		}
-	}
-	return false
 }

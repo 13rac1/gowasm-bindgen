@@ -14,6 +14,6 @@ func TestHashData(t *testing.T) {
 		js.ValueOf("hello"),
 	})
 	if result != "hello-hashed" {
-		t.Fail()
+		t.Errorf("hashData() = %q, want %q", result, "hello-hashed")
 	}
 }
