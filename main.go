@@ -32,7 +32,7 @@ func run() error {
 	flag.StringVar(&goOutput, "go-output", "", "output Go bindings file path (e.g., bindings_gen.go)")
 	flag.BoolVar(&sync, "sync", false, "generate synchronous API (default: worker-based async)")
 	flag.BoolVar(&verbose, "verbose", false, "enable verbose debug output")
-	flag.StringVar(&wasmPath, "wasm-path", "module.wasm", "WASM file path in generated worker.js")
+	flag.StringVar(&wasmPath, "wasm-path", "", "WASM file path in generated worker.js (default: <dirname>.wasm)")
 	flag.Parse()
 
 	// Validate flags
@@ -56,6 +56,16 @@ func run() error {
 	// Check if source file exists
 	if _, err := os.Stat(sourceFile); err != nil {
 		return fmt.Errorf("source file not found: %s", sourceFile)
+	}
+
+	// Derive default WASM path from directory name if not specified
+	if wasmPath == "" {
+		dirName := filepath.Base(filepath.Dir(sourceFile))
+		if dirName == "." || dirName == "" {
+			wasmPath = "main.wasm"
+		} else {
+			wasmPath = dirName + ".wasm"
+		}
 	}
 
 	// Parse source file
