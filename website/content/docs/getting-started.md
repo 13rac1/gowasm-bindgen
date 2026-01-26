@@ -59,12 +59,12 @@ This creates:
 
 With TinyGo (smaller binary, ~90KB gzipped):
 ```bash
-tinygo build -o main.wasm -target wasm .
+tinygo build -o example.wasm -target wasm .
 ```
 
 Or with standard Go (~600KB gzipped):
 ```bash
-GOOS=js GOARCH=wasm go build -o main.wasm .
+GOOS=js GOARCH=wasm go build -o example.wasm .
 ```
 
 ### 4. Copy Runtime
@@ -80,9 +80,9 @@ cp "$(go env GOROOT)/lib/wasm/wasm_exec.js" .
 ### 5. Use in TypeScript
 
 ```typescript
-import { Main } from './client';
+import { GoMain } from './client';
 
-const wasm = await Main.init('./worker.js');
+const wasm = await GoMain.init('./worker.js');
 
 const greeting = await wasm.greet('World');
 console.log(greeting);  // "Hello, World!"
@@ -105,7 +105,7 @@ my-project/
 ├── src/
 │   └── app.ts            # Your TypeScript code
 ├── dist/
-│   ├── main.wasm         # Compiled WASM
+│   ├── example.wasm      # Compiled WASM
 │   ├── client.ts         # Generated TypeScript
 │   ├── worker.js         # Generated Web Worker
 │   └── wasm_exec.js      # Go runtime
@@ -121,11 +121,11 @@ generate:
 	gowasm-bindgen go/main.go \
 		--ts-output dist/client.ts \
 		--go-output go/bindings_gen.go \
-		--wasm-url main.wasm
+		--wasm-url example.wasm
 
 build: generate
 	cp "$$(tinygo env TINYGOROOT)/targets/wasm_exec.js" dist/
-	tinygo build -o dist/main.wasm -target wasm -opt=z -no-debug ./go/
+	tinygo build -o dist/example.wasm -target wasm -opt=z -no-debug ./go/
 ```
 
 ## Next Steps
