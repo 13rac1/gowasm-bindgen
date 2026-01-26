@@ -1,5 +1,9 @@
 # gowasm-bindgen
 
+<p align="center">
+  <img src="website/static/images/gowasm-bindgen-logo.png" alt="gowasm-bindgen logo" width="400">
+</p>
+
 [![codecov](https://codecov.io/gh/13rac1/gowasm-bindgen/graph/badge.svg)](https://codecov.io/gh/13rac1/gowasm-bindgen)
 [![Go Report Card](https://goreportcard.com/badge/github.com/13rac1/gowasm-bindgen)](https://goreportcard.com/report/github.com/13rac1/gowasm-bindgen)
 [![Go Reference](https://pkg.go.dev/badge/github.com/13rac1/gowasm-bindgen.svg)](https://pkg.go.dev/github.com/13rac1/gowasm-bindgen)
