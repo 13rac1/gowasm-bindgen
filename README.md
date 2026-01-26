@@ -1,6 +1,7 @@
 # gowasm-bindgen
 
 [![codecov](https://codecov.io/gh/13rac1/gowasm-bindgen/graph/badge.svg)](https://codecov.io/gh/13rac1/gowasm-bindgen)
+[![Go Report Card](https://goreportcard.com/badge/github.com/13rac1/gowasm-bindgen)](https://goreportcard.com/report/github.com/13rac1/gowasm-bindgen)
 
 **Type-safe Go in the browser.**
 
