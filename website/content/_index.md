@@ -5,9 +5,12 @@ type: docs
 
 # gowasm-bindgen
 
+[![CI](https://github.com/13rac1/gowasm-bindgen/actions/workflows/ci.yml/badge.svg)](https://github.com/13rac1/gowasm-bindgen/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/13rac1/gowasm-bindgen/graph/badge.svg)](https://codecov.io/gh/13rac1/gowasm-bindgen)
 [![Go Report Card](https://goreportcard.com/badge/github.com/13rac1/gowasm-bindgen)](https://goreportcard.com/report/github.com/13rac1/gowasm-bindgen)
 [![Go Reference](https://pkg.go.dev/badge/github.com/13rac1/gowasm-bindgen.svg)](https://pkg.go.dev/github.com/13rac1/gowasm-bindgen)
+[![GitHub release](https://img.shields.io/github/v/release/13rac1/gowasm-bindgen)](https://github.com/13rac1/gowasm-bindgen/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 **Type-safe Go in the browser.** Generate TypeScript bindings from Go source code.
 
