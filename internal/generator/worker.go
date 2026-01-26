@@ -191,7 +191,7 @@ func GenerateWorkerClassMethod(fn parser.GoFunction) string {
 
 	params := GenerateFunctionParams(fn.Params)
 	returnType := determineReturnType(fn)
-	funcName := lowerFirst(fn.Name)
+	funcName := LowerFirst(fn.Name)
 
 	// Check if any parameters are callbacks
 	var callbackParams []int

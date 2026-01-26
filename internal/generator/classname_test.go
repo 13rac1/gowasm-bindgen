@@ -49,3 +49,52 @@ func TestToTitleCase(t *testing.T) {
 		})
 	}
 }
+
+func TestLowerFirst(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"Hello", "hello"},
+		{"UPPER", "uPPER"},
+		{"already", "already"},
+		{"A", "a"},
+		{"", ""},
+		{"XMLParser", "xMLParser"},
+		{"GetUser", "getUser"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := LowerFirst(tt.input)
+			if got != tt.want {
+				t.Errorf("LowerFirst(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestToKebabCase(t *testing.T) {
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{"GoMain", "go-main"},
+		{"GoWasm", "go-wasm"},
+		{"XMLParser", "x-m-l-parser"},
+		{"simple", "simple"},
+		{"MyClass", "my-class"},
+		{"ABCDef", "a-b-c-def"},
+		{"", ""},
+		{"A", "a"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.input, func(t *testing.T) {
+			got := ToKebabCase(tt.input)
+			if got != tt.want {
+				t.Errorf("ToKebabCase(%q) = %q, want %q", tt.input, got, tt.want)
+			}
+		})
+	}
+}

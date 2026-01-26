@@ -855,6 +855,60 @@ func main() {
 `,
 			expected: true,
 		},
+		{
+			name: "select in if-else branch",
+			src: `package main
+
+func main() {
+	if false {
+		println("nope")
+	} else {
+		select {}
+	}
+}
+`,
+			expected: true,
+		},
+		{
+			name: "select in range loop",
+			src: `package main
+
+func main() {
+	for range []int{1} {
+		select {}
+	}
+}
+`,
+			expected: true,
+		},
+		{
+			name: "select in type switch",
+			src: `package main
+
+func main() {
+	var x interface{} = 1
+	switch x.(type) {
+	case int:
+		select {}
+	}
+}
+`,
+			expected: true,
+		},
+		{
+			name: "nested block with select",
+			src: `package main
+
+func main() {
+	{
+		{
+			select {}
+		}
+	}
+}
+`,
+			expected: true,
+		},
 	}
 
 	for _, tt := range tests {

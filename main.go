@@ -2,11 +2,11 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"unicode"
 
 	flag "github.com/spf13/pflag"
 
@@ -14,6 +14,20 @@ import (
 	"github.com/13rac1/gowasm-bindgen/internal/parser"
 	"github.com/13rac1/gowasm-bindgen/internal/validator"
 )
+
+// Config holds CLI configuration for testability.
+type Config struct {
+	SourceFile string
+	OutputDir  string
+	NoBuild    bool
+	Compiler   string
+	Mode       string
+	ClassName  string
+	Optimize   bool
+	Verbose    bool
+	Stdout     io.Writer
+	Stderr     io.Writer
+}
 
 func main() {
 	if err := run(); err != nil {
@@ -55,72 +69,92 @@ func run() error {
 		return fmt.Errorf("--compiler must be 'tinygo' or 'go', got %q\n\n%s", compiler, usage)
 	}
 
-	sourceFile := flag.Arg(0)
-	sourceDir := filepath.Dir(sourceFile)
+	cfg := Config{
+		SourceFile: flag.Arg(0),
+		OutputDir:  outputDir,
+		NoBuild:    noBuild,
+		Compiler:   compiler,
+		Mode:       mode,
+		ClassName:  className,
+		Optimize:   optimize,
+		Verbose:    verbose,
+		Stdout:     os.Stdout,
+		Stderr:     os.Stderr,
+	}
+
+	return execute(cfg)
+}
+
+// execute runs the generator with the given configuration.
+// This is separated from run() for testability.
+func execute(cfg Config) error {
+	sourceDir := filepath.Dir(cfg.SourceFile)
 	dirName := filepath.Base(sourceDir)
 	if dirName == "." || dirName == "" {
 		dirName = "main"
 	}
 
 	// Derive class name (can be overridden with --class-name)
+	className := cfg.ClassName
 	if className == "" {
 		className = generator.DeriveClassName(dirName)
 	}
 
 	// Derive output paths
-	tsFilename := toKebabCase(className) + ".ts"
-	tsOutput := filepath.Join(outputDir, tsFilename)
+	tsFilename := generator.ToKebabCase(className) + ".ts"
+	tsOutput := filepath.Join(cfg.OutputDir, tsFilename)
 	goOutput := filepath.Join(sourceDir, "bindings_gen.go")
-	wasmFile := filepath.Join(outputDir, dirName+".wasm")
+	wasmFile := filepath.Join(cfg.OutputDir, dirName+".wasm")
 	wasmURL := dirName + ".wasm"
 
-	if verbose {
-		fmt.Fprintf(os.Stderr, "[DEBUG] Source file: %s\n", sourceFile)
-		fmt.Fprintf(os.Stderr, "[DEBUG] Source dir: %s\n", sourceDir)
-		fmt.Fprintf(os.Stderr, "[DEBUG] Output dir: %s\n", outputDir)
-		fmt.Fprintf(os.Stderr, "[DEBUG] TS output: %s\n", tsOutput)
-		fmt.Fprintf(os.Stderr, "[DEBUG] Go output: %s\n", goOutput)
-		fmt.Fprintf(os.Stderr, "[DEBUG] WASM file: %s\n", wasmFile)
-		fmt.Fprintf(os.Stderr, "[DEBUG] Mode: %s\n", mode)
-		fmt.Fprintf(os.Stderr, "[DEBUG] Class name: %s\n", className)
-		fmt.Fprintf(os.Stderr, "[DEBUG] Compiler: %s\n", compiler)
-		fmt.Fprintf(os.Stderr, "[DEBUG] Optimize: %v\n", optimize)
-		fmt.Fprintf(os.Stderr, "[DEBUG] No build: %v\n", noBuild)
+	if cfg.Verbose {
+		//nolint:errcheck // debug output errors are not critical
+		fmt.Fprintf(cfg.Stderr, "[DEBUG] Source file: %s\n", cfg.SourceFile)
+		fmt.Fprintf(cfg.Stderr, "[DEBUG] Source dir: %s\n", sourceDir)     //nolint:errcheck
+		fmt.Fprintf(cfg.Stderr, "[DEBUG] Output dir: %s\n", cfg.OutputDir) //nolint:errcheck
+		fmt.Fprintf(cfg.Stderr, "[DEBUG] TS output: %s\n", tsOutput)       //nolint:errcheck
+		fmt.Fprintf(cfg.Stderr, "[DEBUG] Go output: %s\n", goOutput)       //nolint:errcheck
+		fmt.Fprintf(cfg.Stderr, "[DEBUG] WASM file: %s\n", wasmFile)       //nolint:errcheck
+		fmt.Fprintf(cfg.Stderr, "[DEBUG] Mode: %s\n", cfg.Mode)            //nolint:errcheck
+		fmt.Fprintf(cfg.Stderr, "[DEBUG] Class name: %s\n", className)     //nolint:errcheck
+		fmt.Fprintf(cfg.Stderr, "[DEBUG] Compiler: %s\n", cfg.Compiler)    //nolint:errcheck
+		fmt.Fprintf(cfg.Stderr, "[DEBUG] Optimize: %v\n", cfg.Optimize)    //nolint:errcheck
+		fmt.Fprintf(cfg.Stderr, "[DEBUG] No build: %v\n", cfg.NoBuild)     //nolint:errcheck
 	}
 
 	// Check if source file exists
-	if _, err := os.Stat(sourceFile); err != nil {
-		return fmt.Errorf("source file not found: %s", sourceFile)
+	if _, err := os.Stat(cfg.SourceFile); err != nil {
+		return fmt.Errorf("source file not found: %s", cfg.SourceFile)
 	}
 
 	// Parse source file
-	fmt.Printf("Parsing %s...\n", sourceFile)
-	parsed, err := parser.ParseSourceFile(sourceFile)
+	fmt.Fprintf(cfg.Stdout, "Parsing %s...\n", cfg.SourceFile) //nolint:errcheck
+	parsed, err := parser.ParseSourceFile(cfg.SourceFile)
 	if err != nil {
 		return fmt.Errorf("parsing source file: %w", err)
 	}
 
-	fmt.Printf("Package: %s\n", parsed.Package)
-	fmt.Printf("Found %d exported function(s):\n", len(parsed.Functions))
+	fmt.Fprintf(cfg.Stdout, "Package: %s\n", parsed.Package)                           //nolint:errcheck
+	fmt.Fprintf(cfg.Stdout, "Found %d exported function(s):\n", len(parsed.Functions)) //nolint:errcheck
 	for _, fn := range parsed.Functions {
-		fmt.Printf("  - %s\n", fn.Name)
+		fmt.Fprintf(cfg.Stdout, "  - %s\n", fn.Name) //nolint:errcheck
 	}
 
-	if verbose {
-		fmt.Fprintf(os.Stderr, "[DEBUG] Found %d types\n", len(parsed.Types))
+	if cfg.Verbose {
+		fmt.Fprintf(cfg.Stderr, "[DEBUG] Found %d types\n", len(parsed.Types)) //nolint:errcheck
 		for _, fn := range parsed.Functions {
-			fmt.Fprintf(os.Stderr, "[DEBUG] Function %s: %d params, %d returns\n", fn.Name, len(fn.Params), len(fn.Returns))
+			fmt.Fprintf(cfg.Stderr, "[DEBUG] Function %s: %d params, %d returns\n", fn.Name, len(fn.Params), len(fn.Returns)) //nolint:errcheck
 		}
 	}
 
 	if len(parsed.Functions) == 0 {
 		return fmt.Errorf("no exported functions found in %s\n\n"+
-			"Functions must be exported (start with uppercase letter) and have no receiver", sourceFile)
+			"Functions must be exported (start with uppercase letter) and have no receiver", cfg.SourceFile)
 	}
 
 	// Check for select {} in main (required for WASM to stay alive)
 	if parsed.Package == "main" {
-		hasSelect, err := parser.HasSelectInMain(sourceFile)
+		hasSelect, err := parser.HasSelectInMain(cfg.SourceFile)
 		if err != nil {
 			return fmt.Errorf("checking for select {}: %w", err)
 		}
@@ -137,31 +171,31 @@ func run() error {
 	}
 
 	// Create output directory
-	if err := os.MkdirAll(outputDir, 0750); err != nil {
+	if err := os.MkdirAll(cfg.OutputDir, 0750); err != nil {
 		return fmt.Errorf("creating output directory: %w", err)
 	}
 
 	// Generate Go bindings
-	fmt.Printf("\nGenerating Go bindings...\n")
-	workerMode := mode == "worker"
+	fmt.Fprintf(cfg.Stdout, "\nGenerating Go bindings...\n") //nolint:errcheck
+	workerMode := cfg.Mode == "worker"
 	bindingsCode := generator.GenerateGoBindings(parsed, workerMode)
 
 	if err := os.WriteFile(goOutput, []byte(bindingsCode), 0600); err != nil {
 		return fmt.Errorf("writing Go bindings: %w", err)
 	}
-	fmt.Printf("Generated %s\n", goOutput)
+	fmt.Fprintf(cfg.Stdout, "Generated %s\n", goOutput) //nolint:errcheck
 
 	// Generate TypeScript client
-	if mode == "sync" {
-		if verbose {
-			fmt.Fprintf(os.Stderr, "[DEBUG] Generating sync mode client\n")
+	if cfg.Mode == "sync" {
+		if cfg.Verbose {
+			fmt.Fprintf(cfg.Stderr, "[DEBUG] Generating sync mode client\n") //nolint:errcheck
 		}
 		if err := generateSyncOutput(parsed, tsOutput, className); err != nil {
 			return err
 		}
 	} else {
-		if verbose {
-			fmt.Fprintf(os.Stderr, "[DEBUG] Generating worker mode client\n")
+		if cfg.Verbose {
+			fmt.Fprintf(cfg.Stderr, "[DEBUG] Generating worker mode client\n") //nolint:errcheck
 		}
 		if err := generateWorkerOutput(parsed, tsOutput, wasmURL, className); err != nil {
 			return err
@@ -169,29 +203,29 @@ func run() error {
 	}
 
 	// Stop here if --no-build
-	if noBuild {
+	if cfg.NoBuild {
 		return nil
 	}
 
 	// Copy wasm_exec.js
-	fmt.Printf("\nCopying wasm_exec.js...\n")
-	if err := copyWasmExec(compiler, outputDir); err != nil {
+	fmt.Fprintf(cfg.Stdout, "\nCopying wasm_exec.js...\n") //nolint:errcheck
+	if err := copyWasmExec(cfg.Compiler, cfg.OutputDir); err != nil {
 		return err
 	}
 
 	// Compile WASM
-	fmt.Printf("\nCompiling WASM with %s...\n", compiler)
-	if err := compileWasm(sourceDir, wasmFile, compiler, optimize); err != nil {
+	fmt.Fprintf(cfg.Stdout, "\nCompiling WASM with %s...\n", cfg.Compiler) //nolint:errcheck
+	if err := compileWasm(sourceDir, wasmFile, cfg.Compiler, cfg.Optimize); err != nil {
 		return fmt.Errorf("compiling WASM: %w", err)
 	}
 
-	fmt.Printf("\nBuild complete!\n")
-	fmt.Printf("  %s\n", tsOutput)
-	if mode == "worker" {
-		fmt.Printf("  %s\n", filepath.Join(outputDir, "worker.js"))
+	fmt.Fprintf(cfg.Stdout, "\nBuild complete!\n") //nolint:errcheck
+	fmt.Fprintf(cfg.Stdout, "  %s\n", tsOutput)    //nolint:errcheck
+	if cfg.Mode == "worker" {
+		fmt.Fprintf(cfg.Stdout, "  %s\n", filepath.Join(cfg.OutputDir, "worker.js")) //nolint:errcheck
 	}
-	fmt.Printf("  %s\n", filepath.Join(outputDir, "wasm_exec.js"))
-	fmt.Printf("  %s\n", wasmFile)
+	fmt.Fprintf(cfg.Stdout, "  %s\n", filepath.Join(cfg.OutputDir, "wasm_exec.js")) //nolint:errcheck
+	fmt.Fprintf(cfg.Stdout, "  %s\n", wasmFile)                                     //nolint:errcheck
 
 	return nil
 }
@@ -213,7 +247,7 @@ func generateSyncOutput(parsed *parser.ParsedFile, output, className string) err
 	fmt.Printf("  import { %s } from '%s';\n", className, importPath)
 	fmt.Printf("  const wasm = await %s.init('./<name>.wasm');\n", className)
 	if len(parsed.Functions) > 0 {
-		exampleFunc := lowerFirst(parsed.Functions[0].Name)
+		exampleFunc := generator.LowerFirst(parsed.Functions[0].Name)
 		fmt.Printf("  const result = wasm.%s(...);\n", exampleFunc)
 	}
 	return nil
@@ -243,35 +277,11 @@ func generateWorkerOutput(parsed *parser.ParsedFile, output, wasmPath, className
 	fmt.Printf("  import { %s } from '%s';\n", className, importPath)
 	fmt.Printf("  const wasm = await %s.init('./worker.js');\n", className)
 	if len(parsed.Functions) > 0 {
-		exampleFunc := lowerFirst(parsed.Functions[0].Name)
+		exampleFunc := generator.LowerFirst(parsed.Functions[0].Name)
 		fmt.Printf("  const result = await wasm.%s(...);\n", exampleFunc)
 	}
 	fmt.Printf("  wasm.terminate();\n")
 	return nil
-}
-
-// lowerFirst converts first letter to lowercase
-func lowerFirst(s string) string {
-	if s == "" {
-		return ""
-	}
-	return strings.ToLower(s[:1]) + s[1:]
-}
-
-// toKebabCase converts "GoMain" to "go-main"
-func toKebabCase(s string) string {
-	var result []rune
-	for i, r := range s {
-		if unicode.IsUpper(r) {
-			if i > 0 {
-				result = append(result, '-')
-			}
-			result = append(result, unicode.ToLower(r))
-		} else {
-			result = append(result, r)
-		}
-	}
-	return string(result)
 }
 
 // copyWasmExec copies the wasm_exec.js runtime from the compiler installation

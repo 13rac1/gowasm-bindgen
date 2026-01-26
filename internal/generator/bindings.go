@@ -47,7 +47,7 @@ func GenerateGoBindings(parsed *parser.ParsedFile, workerMode bool) string {
 	b.WriteString("func init() {\n")
 	for _, fn := range parsed.Functions {
 		b.WriteString("\tjs.Global().Set(\"")
-		b.WriteString(lowerFirst(fn.Name))
+		b.WriteString(LowerFirst(fn.Name))
 		b.WriteString("\", recoverFunc(wasm")
 		b.WriteString(fn.Name)
 		b.WriteString("))\n")
@@ -132,12 +132,4 @@ func generateWrapperFunction(fn parser.GoFunction, workerMode bool) string {
 	b.WriteString("}")
 
 	return b.String()
-}
-
-// lowerFirst converts first letter to lowercase
-func lowerFirst(s string) string {
-	if s == "" {
-		return ""
-	}
-	return strings.ToLower(s[:1]) + s[1:]
 }

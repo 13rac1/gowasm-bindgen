@@ -103,7 +103,7 @@ func GenerateClassMethod(fn parser.GoFunction) string {
 
 	params := GenerateFunctionParams(fn.Params)
 	returnType := determineReturnType(fn)
-	funcName := lowerFirst(fn.Name)
+	funcName := LowerFirst(fn.Name)
 
 	b.WriteString("  ")
 	b.WriteString(funcName)

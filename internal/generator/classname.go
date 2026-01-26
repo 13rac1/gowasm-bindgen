@@ -44,3 +44,29 @@ func toTitleCase(s string) string {
 
 	return result.String()
 }
+
+// LowerFirst converts first letter to lowercase.
+// Used for converting Go function names to JavaScript conventions.
+func LowerFirst(s string) string {
+	if s == "" {
+		return ""
+	}
+	return strings.ToLower(s[:1]) + s[1:]
+}
+
+// ToKebabCase converts "GoMain" to "go-main".
+// Used for generating TypeScript filenames from class names.
+func ToKebabCase(s string) string {
+	var result []rune
+	for i, r := range s {
+		if unicode.IsUpper(r) {
+			if i > 0 {
+				result = append(result, '-')
+			}
+			result = append(result, unicode.ToLower(r))
+		} else {
+			result = append(result, r)
+		}
+	}
+	return string(result)
+}
