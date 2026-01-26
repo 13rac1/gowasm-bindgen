@@ -387,6 +387,31 @@ func WithNamedParams(callback func(item string, index int)) {
 	}
 }
 
+func TestIsByteSlice(t *testing.T) {
+	tests := []struct {
+		name     string
+		goType   GoType
+		expected bool
+	}{
+		{"byte slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "byte", Kind: KindPrimitive}}, true},
+		{"uint8 slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "uint8", Kind: KindPrimitive}}, true},
+		{"int slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "int", Kind: KindPrimitive}}, false},
+		{"string slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "string", Kind: KindPrimitive}}, false},
+		{"not a slice", GoType{Kind: KindPrimitive, Name: "int"}, false},
+		{"nil elem", GoType{Kind: KindSlice, Elem: nil}, false},
+		{"struct elem", GoType{Kind: KindSlice, Elem: &GoType{Name: "User", Kind: KindStruct}}, false},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := isByteSlice(tt.goType)
+			if result != tt.expected {
+				t.Errorf("isByteSlice(%+v) = %v, want %v", tt.goType, result, tt.expected)
+			}
+		})
+	}
+}
+
 func TestGoTypeToTS(t *testing.T) {
 	tests := []struct {
 		name     string
@@ -420,6 +445,27 @@ func TestGoTypeToTS(t *testing.T) {
 			{Name: "string", Kind: KindPrimitive},
 			{Name: "int", Kind: KindPrimitive},
 		}}, "(arg0: string, arg1: number) => void"},
+		// Struct inline interface
+		{"struct with fields", GoType{
+			Kind: KindStruct,
+			Name: "User",
+			Fields: []GoField{
+				{Name: "Name", JSONTag: "name", Type: GoType{Name: "string", Kind: KindPrimitive}},
+				{Name: "Age", JSONTag: "", Type: GoType{Name: "int", Kind: KindPrimitive}},
+			},
+		}, "{name: string, Age: number}"},
+		{"empty struct", GoType{Kind: KindStruct, Fields: []GoField{}}, "any"},
+		// Pointer
+		{"pointer to string", GoType{Kind: KindPointer, Elem: &GoType{Name: "string", Kind: KindPrimitive}}, "string"},
+		{"pointer nil elem", GoType{Kind: KindPointer, Elem: nil}, "any"},
+		// Map with non-string key
+		{"map[int]string", GoType{Kind: KindMap, Key: &GoType{Name: "int", Kind: KindPrimitive}, Value: &GoType{Name: "string", Kind: KindPrimitive}}, "Record<number, string>"},
+		// Unknown kind
+		{"unknown kind", GoType{Kind: 999}, "any"},
+		// Slice with nil elem
+		{"slice nil elem", GoType{Kind: KindSlice, Elem: nil}, "any[]"},
+		// Map with nil key/value
+		{"map nil parts", GoType{Kind: KindMap, Key: nil, Value: nil}, "any"},
 	}
 
 	for _, tt := range tests {
@@ -430,4 +476,292 @@ func TestGoTypeToTS(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestGoTypeToJSExtraction(t *testing.T) {
+	tests := []struct {
+		name       string
+		goType     GoType
+		argExpr    string
+		workerMode bool
+		contains   []string // Strings that should appear in output
+	}{
+		// Primitive types
+		{"string", GoType{Name: "string", Kind: KindPrimitive}, "args[0]", false, []string{"args[0].String()"}},
+		{"int", GoType{Name: "int", Kind: KindPrimitive}, "args[0]", false, []string{"args[0].Int()"}},
+		{"int64", GoType{Name: "int64", Kind: KindPrimitive}, "args[0]", false, []string{"int64(args[0].Float())"}},
+		{"int32", GoType{Name: "int32", Kind: KindPrimitive}, "args[0]", false, []string{"int32(args[0].Int())"}},
+		{"int16", GoType{Name: "int16", Kind: KindPrimitive}, "args[0]", false, []string{"int16(args[0].Int())"}},
+		{"int8", GoType{Name: "int8", Kind: KindPrimitive}, "args[0]", false, []string{"int8(args[0].Int())"}},
+		{"uint", GoType{Name: "uint", Kind: KindPrimitive}, "args[0]", false, []string{"uint(args[0].Int())"}},
+		{"uint64", GoType{Name: "uint64", Kind: KindPrimitive}, "args[0]", false, []string{"uint64(args[0].Float())"}},
+		{"uint32", GoType{Name: "uint32", Kind: KindPrimitive}, "args[0]", false, []string{"uint32(args[0].Int())"}},
+		{"uint16", GoType{Name: "uint16", Kind: KindPrimitive}, "args[0]", false, []string{"uint16(args[0].Int())"}},
+		{"uint8", GoType{Name: "uint8", Kind: KindPrimitive}, "args[0]", false, []string{"uint8(args[0].Int())"}},
+		{"float64", GoType{Name: "float64", Kind: KindPrimitive}, "args[0]", false, []string{"args[0].Float()"}},
+		{"float32", GoType{Name: "float32", Kind: KindPrimitive}, "args[0]", false, []string{"float32(args[0].Float())"}},
+		{"bool", GoType{Name: "bool", Kind: KindPrimitive}, "args[0]", false, []string{"args[0].Bool()"}},
+		{"unknown primitive", GoType{Name: "unknown", Kind: KindPrimitive}, "args[0]", false, []string{"args[0]"}},
+
+		// Byte slice (bulk copy)
+		{"byte slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "byte", Kind: KindPrimitive}}, "args[0]", false,
+			[]string{"js.CopyBytesToGo", "args[0].Length()", "make([]byte, length)"}},
+
+		// Non-byte slice (element by element)
+		{"int slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "int", Kind: KindPrimitive}}, "args[0]", false,
+			[]string{"make([]int, length)", "args[0].Index(i)", ".Int()"}},
+		{"string slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "string", Kind: KindPrimitive}}, "args[0]", false,
+			[]string{"make([]string, length)", "args[0].Index(i)", ".String()"}},
+		{"nil elem slice", GoType{Kind: KindSlice, Elem: nil}, "args[0]", false, []string{"nil"}},
+
+		// Map extraction
+		{"map[string]int", GoType{
+			Kind:  KindMap,
+			Key:   &GoType{Name: "string", Kind: KindPrimitive},
+			Value: &GoType{Name: "int", Kind: KindPrimitive},
+		}, "args[0]", false,
+			[]string{"make(map[string]int)", "Object", "keys", ".Get(key)", ".Int()"}},
+		{"map nil parts", GoType{Kind: KindMap, Key: nil, Value: nil}, "args[0]", false, []string{"nil"}},
+		{"map[int]string unsupported", GoType{
+			Kind:  KindMap,
+			Key:   &GoType{Name: "int", Kind: KindPrimitive},
+			Value: &GoType{Name: "string", Kind: KindPrimitive},
+		}, "args[0]", false, []string{"nil"}},
+
+		// Struct extraction
+		{"struct", GoType{
+			Kind: KindStruct,
+			Name: "User",
+			Fields: []GoField{
+				{Name: "Name", JSONTag: "name", Type: GoType{Name: "string", Kind: KindPrimitive}},
+				{Name: "Age", JSONTag: "", Type: GoType{Name: "int", Kind: KindPrimitive}},
+			},
+		}, "args[0]", false,
+			[]string{"User{", "Name: ", ".Get(\"name\")", ".String()", "Age: ", ".Get(\"Age\")", ".Int()"}},
+
+		// Pointer extraction
+		{"pointer to int", GoType{Kind: KindPointer, Elem: &GoType{Name: "int", Kind: KindPrimitive}}, "args[0]", false,
+			[]string{"args[0].Int()"}},
+		{"pointer nil elem", GoType{Kind: KindPointer, Elem: nil}, "args[0]", false, []string{"args[0]"}},
+
+		// Callback (sync mode)
+		{"callback sync mode", GoType{
+			Kind:   KindFunction,
+			IsVoid: true,
+			CallbackParams: []GoType{
+				{Name: "string", Kind: KindPrimitive},
+				{Name: "int", Kind: KindPrimitive},
+			},
+		}, "args[0]", false,
+			[]string{"func(arg0 string, arg1 int)", ".Invoke(arg0, arg1)"}},
+
+		// Callback (worker mode)
+		{"callback worker mode", GoType{
+			Kind:   KindFunction,
+			IsVoid: true,
+			CallbackParams: []GoType{
+				{Name: "string", Kind: KindPrimitive},
+			},
+		}, "args[0]", true,
+			[]string{"func(arg0 string)", "invokeCallback", "cbArgs.Call(\"push\"", ".Int()"}},
+
+		// Unknown kind
+		{"unknown kind", GoType{Kind: 999}, "args[0]", false, []string{"args[0]"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GoTypeToJSExtraction(tt.goType, tt.argExpr, tt.workerMode)
+			for _, substr := range tt.contains {
+				if !contains(result, substr) {
+					t.Errorf("GoTypeToJSExtraction() = %q, should contain %q", result, substr)
+				}
+			}
+		})
+	}
+}
+
+func TestGoTypeToJSReturn(t *testing.T) {
+	tests := []struct {
+		name      string
+		goType    GoType
+		valueExpr string
+		contains  []string // Strings that should appear in output
+	}{
+		// Primitives - returned directly
+		{"string", GoType{Name: "string", Kind: KindPrimitive}, "result", []string{"result"}},
+		{"int", GoType{Name: "int", Kind: KindPrimitive}, "result", []string{"result"}},
+		{"bool", GoType{Name: "bool", Kind: KindPrimitive}, "result", []string{"result"}},
+
+		// Byte slice (bulk copy to Uint8Array)
+		{"byte slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "byte", Kind: KindPrimitive}}, "result",
+			[]string{"Uint8Array", "js.CopyBytesToJS", "result"}},
+		{"uint8 slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "uint8", Kind: KindPrimitive}}, "result",
+			[]string{"Uint8Array", "js.CopyBytesToJS"}},
+
+		// Typed arrays
+		{"int8 slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "int8", Kind: KindPrimitive}}, "result",
+			[]string{"Int8Array", "SetIndex"}},
+		{"int16 slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "int16", Kind: KindPrimitive}}, "result",
+			[]string{"Int16Array", "SetIndex"}},
+		{"int32 slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "int32", Kind: KindPrimitive}}, "result",
+			[]string{"Int32Array", "SetIndex"}},
+		{"uint16 slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "uint16", Kind: KindPrimitive}}, "result",
+			[]string{"Uint16Array", "SetIndex"}},
+		{"uint32 slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "uint32", Kind: KindPrimitive}}, "result",
+			[]string{"Uint32Array", "SetIndex"}},
+		{"float32 slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "float32", Kind: KindPrimitive}}, "result",
+			[]string{"Float32Array", "SetIndex"}},
+		{"float64 slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "float64", Kind: KindPrimitive}}, "result",
+			[]string{"Float64Array", "SetIndex"}},
+
+		// Non-typed array slices (returned directly)
+		{"int slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "int", Kind: KindPrimitive}}, "result",
+			[]string{"result"}},
+		{"string slice", GoType{Kind: KindSlice, Elem: &GoType{Name: "string", Kind: KindPrimitive}}, "result",
+			[]string{"result"}},
+		{"nil elem slice", GoType{Kind: KindSlice, Elem: nil}, "result", []string{"nil"}},
+
+		// Struct slices (element conversion)
+		{"struct slice", GoType{Kind: KindSlice, Elem: &GoType{
+			Kind: KindStruct,
+			Name: "User",
+			Fields: []GoField{
+				{Name: "Name", JSONTag: "name", Type: GoType{Name: "string", Kind: KindPrimitive}},
+			},
+		}}, "result",
+			[]string{"[]interface{}", "for i, v := range result", "map[string]interface{}"}},
+
+		// Map return
+		{"map", GoType{Kind: KindMap, Key: &GoType{Name: "string"}, Value: &GoType{Name: "int"}}, "result",
+			[]string{"map[string]interface{}(result)"}},
+
+		// Struct return
+		{"struct", GoType{
+			Kind: KindStruct,
+			Name: "User",
+			Fields: []GoField{
+				{Name: "Name", JSONTag: "name", Type: GoType{Name: "string", Kind: KindPrimitive}},
+				{Name: "Age", JSONTag: "", Type: GoType{Name: "int", Kind: KindPrimitive}},
+			},
+		}, "result",
+			[]string{"map[string]interface{}{", "\"name\": result.Name", "\"age\": result.Age"}},
+
+		// Pointer return
+		{"pointer to int", GoType{Kind: KindPointer, Elem: &GoType{Name: "int", Kind: KindPrimitive}}, "result",
+			[]string{"result"}},
+		{"pointer nil elem", GoType{Kind: KindPointer, Elem: nil}, "result", []string{"result"}},
+
+		// Error return
+		{"error", GoType{Kind: KindError}, "err", []string{"err.Error()"}},
+
+		// Unknown kind
+		{"unknown kind", GoType{Kind: 999}, "result", []string{"result"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := GoTypeToJSReturn(tt.goType, tt.valueExpr)
+			for _, substr := range tt.contains {
+				if !contains(result, substr) {
+					t.Errorf("GoTypeToJSReturn() = %q, should contain %q", result, substr)
+				}
+			}
+		})
+	}
+}
+
+func TestCallbackWrapperCode(t *testing.T) {
+	tests := []struct {
+		name     string
+		goType   GoType
+		argExpr  string
+		contains []string
+	}{
+		{"no params", GoType{
+			Kind:           KindFunction,
+			CallbackParams: []GoType{},
+		}, "cb", []string{"func()", "cb.Invoke()"}},
+
+		{"one param", GoType{
+			Kind: KindFunction,
+			CallbackParams: []GoType{
+				{Name: "string", Kind: KindPrimitive},
+			},
+		}, "cb", []string{"func(arg0 string)", "cb.Invoke(arg0)"}},
+
+		{"two params", GoType{
+			Kind: KindFunction,
+			CallbackParams: []GoType{
+				{Name: "string", Kind: KindPrimitive},
+				{Name: "int", Kind: KindPrimitive},
+			},
+		}, "cb", []string{"func(arg0 string, arg1 int)", "cb.Invoke(arg0, arg1)"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := callbackWrapperCode(tt.goType, tt.argExpr)
+			for _, substr := range tt.contains {
+				if !contains(result, substr) {
+					t.Errorf("callbackWrapperCode() = %q, should contain %q", result, substr)
+				}
+			}
+		})
+	}
+}
+
+func TestWorkerCallbackCode(t *testing.T) {
+	tests := []struct {
+		name     string
+		goType   GoType
+		argExpr  string
+		contains []string
+	}{
+		{"no params", GoType{
+			Kind:           KindFunction,
+			CallbackParams: []GoType{},
+		}, "cb", []string{"func()", "invokeCallback", "cb.Int()"}},
+
+		{"one param", GoType{
+			Kind: KindFunction,
+			CallbackParams: []GoType{
+				{Name: "string", Kind: KindPrimitive},
+			},
+		}, "cb", []string{"func(arg0 string)", "cbArgs.Call(\"push\", arg0)", "invokeCallback"}},
+
+		{"two params", GoType{
+			Kind: KindFunction,
+			CallbackParams: []GoType{
+				{Name: "int", Kind: KindPrimitive},
+				{Name: "bool", Kind: KindPrimitive},
+			},
+		}, "cb", []string{"func(arg0 int, arg1 bool)", "cbArgs.Call(\"push\", arg0)", "cbArgs.Call(\"push\", arg1)"}},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			result := workerCallbackCode(tt.goType, tt.argExpr)
+			for _, substr := range tt.contains {
+				if !contains(result, substr) {
+					t.Errorf("workerCallbackCode() = %q, should contain %q", result, substr)
+				}
+			}
+		})
+	}
+}
+
+// contains checks if s contains substr
+func contains(s, substr string) bool {
+	return len(s) >= len(substr) && (s == substr || len(substr) == 0 ||
+		(len(s) > 0 && len(substr) > 0 && stringContains(s, substr)))
+}
+
+func stringContains(s, substr string) bool {
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }
