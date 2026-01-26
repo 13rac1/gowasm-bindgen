@@ -139,8 +139,8 @@ See the [CLI Reference](https://13rac1.github.io/gowasm-bindgen/docs/cli-referen
 
 Choose your path:
 
-- **[For TypeScript Developers](docs/for-typescript-devs.md)** — Run Go in your frontend in 10 minutes
-- **[For Go Developers](docs/for-go-devs.md)** — Full-stack Go with proper JS types
+- **[For TypeScript Developers](https://13rac1.github.io/gowasm-bindgen/docs/for-typescript-devs/)** — Run Go in your frontend in 10 minutes
+- **[For Go Developers](https://13rac1.github.io/gowasm-bindgen/docs/for-go-devs/)** — Full-stack Go with proper JS types
 
 ## See It Working
 

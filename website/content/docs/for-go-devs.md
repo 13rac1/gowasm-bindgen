@@ -1,6 +1,6 @@
 ---
 title: "For Go Developers"
-weight: 3
+weight: 30
 ---
 
 # gowasm-bindgen for Go Developers
@@ -21,7 +21,7 @@ func myFunc(this js.Value, args []js.Value) interface{} {
 
 The `args` parameter is `[]js.Value` (untyped), and the return is `interface{}` (untyped). TypeScript sees these functions as `any`.
 
-**With gowasm-bindgen, you write normal Go functions:**
+**With the new gowasm-bindgen, you write normal Go functions:**
 
 ```go
 // New way - normal Go functions
@@ -34,7 +34,7 @@ gowasm-bindgen reads your Go source code, infers types from function signatures,
 1. TypeScript client with proper types (`myFunc(name: string): Promise<string>`)
 2. Go WASM bindings that handle the `js.Value` conversions automatically
 
-Your package name becomes the TypeScript class name (e.g., `package main` → `Main` class).
+The TypeScript class name is derived from the directory name (e.g., `wasm/` → `GoWasm` class). Override with `--class-name`.
 
 ## How It Works
 
@@ -59,6 +59,14 @@ gowasm-bindgen main.go --ts-output client.ts --go-output bindings_gen.go
 | Language support | Full | [Partial](https://tinygo.org/docs/reference/lang-support/) |
 | Stdlib | Full | Partial |
 | Reflection | Full | Limited |
+
+**TinyGo Limitations**: TinyGo doesn't support all Go features. Notable gaps include:
+- `reflect.Value.Call()` and `reflect.MakeFunc()`
+- Some `encoding/json` edge cases
+- `go:linkname` directives
+- Three-index slicing (`a[1:2:3]`)
+
+See the [TinyGo Language Support](https://tinygo.org/docs/reference/lang-support/) page for details.
 
 **When to use Standard Go**: If your code uses unsupported features, or you need full `reflect` capabilities for JSON marshaling complex types, use standard Go and accept the larger binary.
 
@@ -132,7 +140,7 @@ interface User {
     status: string;
 }
 
-class Main {
+class GoWasm {
     formatUser(name: string, age: number, active: boolean): Promise<User>;
 }
 ```
@@ -150,7 +158,14 @@ func Divide(a, b int) (int, error) {
 }
 ```
 
+This generates:
+
 ```typescript
+class GoWasm {
+    // Throws on error, returns number on success
+    divide(a: number, b: number): Promise<number>;
+}
+
 // Usage:
 try {
     const result = await wasm.divide(10, 0);
@@ -158,6 +173,22 @@ try {
     console.error(e.message);  // "division by zero"
 }
 ```
+
+### Testing (Optional)
+
+Tests are no longer required for type generation, but you should still write them:
+
+```go
+func TestGreet(t *testing.T) {
+    got := Greet("World")
+    want := "Hello, World!"
+    if got != want {
+        t.Errorf("Greet() = %v, want %v", got, want)
+    }
+}
+```
+
+These are normal unit tests - no `js.Value` required!
 
 ### Typed Arrays
 
@@ -172,15 +203,26 @@ func HashData(data []byte) []byte {
     }
     return hash
 }
+
+// ProcessNumbers works with 32-bit integers
+func ProcessNumbers(nums []int32) []int32 {
+    result := make([]int32, len(nums))
+    for i, n := range nums {
+        result[i] = n * 2
+    }
+    return result
+}
 ```
 
-**Performance note**: Byte arrays (`[]byte`) use `js.CopyBytesToGo()` and `js.CopyBytesToJS()` for efficient bulk copying (~10-100x faster for large arrays).
+**Performance note**: Byte arrays (`[]byte`) use `js.CopyBytesToGo()` and `js.CopyBytesToJS()` for efficient bulk copying (~10-100x faster for large arrays). Other numeric types use element-by-element iteration.
 
 ### Void Callbacks
 
-Functions can accept callback parameters (void only):
+Functions can accept callback parameters (void only). Callbacks work in both worker and sync modes:
 
 ```go
+// ForEach iterates over items and calls the callback for each.
+// The callback is invoked synchronously during ForEach execution.
 func ForEach(items []string, callback func(string, int)) {
     for i, item := range items {
         callback(item, i)
@@ -188,16 +230,36 @@ func ForEach(items []string, callback func(string, int)) {
 }
 ```
 
+This generates:
+
 ```typescript
+class GoWasm {
+    // callback parameter type is inferred
+    forEach(items: string[], callback: (arg0: string, arg1: number) => void): Promise<void>;
+}
+
+// Usage (worker mode - async):
 await wasm.forEach(["a", "b", "c"], (item, index) => {
     console.log(`${index}: ${item}`);
 });
 ```
 
+**Worker mode (default):** Uses fire-and-forget message passing. Go invokes callbacks by posting messages to the main thread. The UI stays responsive, and callbacks are executed asynchronously.
+
+**Sync mode:** Callbacks are invoked directly and synchronously.
+
 **Limitations:**
 - Callbacks must have no return value (void)
-- Callbacks are only valid during the Go function's execution
-- No nested callbacks
+- Callbacks are only valid during the Go function's execution (do not store for later use)
+- No nested callbacks (callback taking callback)
+- In worker mode, callback errors are logged to console but cannot propagate back to Go
+- In sync mode, if the callback throws, Go will panic (caught by error boundary)
+
+**Not supported:**
+```go
+// Callbacks with return values - NOT supported
+func Filter(items []string, predicate func(string) bool) []string
+```
 
 ## Type Mapping
 
@@ -208,11 +270,14 @@ await wasm.forEach(["a", "b", "c"], (item, index) => {
 | `float32`, `float64` | `number` |
 | `bool` | `boolean` |
 | `[]byte`, `[]uint8` | `Uint8Array` |
-| `[]int32` | `Int32Array` |
-| `[]float64` | `Float64Array` |
+| `[]int8` | `Int8Array` |
+| `[]int16`, `[]uint16` | `Int16Array`, `Uint16Array` |
+| `[]int32`, `[]uint32` | `Int32Array`, `Uint32Array` |
+| `[]float32`, `[]float64` | `Float32Array`, `Float64Array` |
 | `[]T` (other) | `T[]` |
 | `map[string]T` | `{[key: string]: T}` |
 | `func(T, U)` (void) | `(arg0: T, arg1: U) => void` |
+| Unknown | `any` |
 
 ## Generated Files
 
@@ -222,13 +287,137 @@ When you run gowasm-bindgen, it generates:
 2. **Web Worker** (`worker.js`): Loads and runs WASM in background thread
 3. **Go Bindings** (`bindings_gen.go`): Handles `js.Value` conversions automatically
 
+The Go bindings file registers your functions and handles all the `js.Value` marshaling:
+
+```go
+// bindings_gen.go (generated)
+package main
+
+import "syscall/js"
+
+func init() {
+    js.Global().Set("greet", js.FuncOf(func(this js.Value, args []js.Value) interface{} {
+        // Automatic conversion from js.Value to Go types
+        name := args[0].String()
+        result := Greet(name)
+        // Automatic conversion from Go types to js.Value
+        return js.ValueOf(result)
+    }))
+}
+```
+
 **Important:** Add `bindings_gen.go` to your `.gitignore` - it's a build artifact.
+
+## Workflow
+
+1. **Write Go functions** with normal signatures:
+   ```bash
+   # go/main.go
+   func Greet(name string) string { ... }
+   ```
+
+2. **Generate bindings**:
+   ```bash
+   gowasm-bindgen --ts-output generated/client.ts --go-output go/bindings_gen.go go/main.go
+   ```
+
+3. **Build WASM** (include the generated bindings):
+   ```bash
+   tinygo build -o dist/example.wasm -target wasm ./go/
+   ```
+
+4. **Use in TypeScript**:
+   ```typescript
+   import { GoWasm } from './client';
+   const wasm = await GoWasm.init('./worker.js');
+   const result = await wasm.greet('World');
+   ```
+
+## Limitations
+
+- **Exported functions only**: Only package-level exported functions are available
+- **Concrete types**: `interface{}` returns become `any` in TypeScript
+- **No function overloads**: Go doesn't support them either
+- **Struct field tags**: Use JSON tags for TypeScript-friendly field names
+- **No runtime validation**: Generated types don't validate at runtime
+
+## Generated API
+
+gowasm-bindgen generates a TypeScript class with a name derived from the directory (e.g., `wasm/` → `GoWasm`):
+
+```typescript
+// Worker mode (default): generated client.ts
+export class GoWasm {
+  static async init(workerUrl: string): Promise<GoWasm>;
+  greet(name: string): Promise<string>;
+  calculate(a: number, b: number, op: string): Promise<number>;
+  terminate(): void;
+}
+
+// Sync mode (-m sync): generated client.ts
+export class GoWasm {
+  static async init(wasmSource: string | BufferSource): Promise<GoWasm>;
+  greet(name: string): string;  // No Promise - synchronous
+  calculate(a: number, b: number, op: string): number;
+}
+```
+
+The sync mode `init()` accepts either a URL string (browser) or `BufferSource` (Node.js).
+
+Your TypeScript users import and use it:
+
+```typescript
+import { GoWasm } from './generated/client';
+
+const wasm = await GoWasm.init('./worker.js');
+const result = await wasm.greet('World');
+wasm.terminate();
+```
+
+## Project Structure
+
+```
+your-project/
+├── go/                   # All Go code
+│   ├── main.go           # Your WASM implementation
+│   ├── main_test.go      # Optional unit tests
+│   └── bindings_gen.go   # Generated Go bindings (gitignored)
+├── src/                  # TypeScript source
+│   └── app.ts            # TypeScript frontend
+├── public/               # Static assets
+│   └── index.html
+├── generated/            # Generated TS/JS (gitignored)
+│   ├── client.ts         # Generated TypeScript class API
+│   └── worker.js         # Generated Web Worker wrapper
+└── dist/                 # Build output (gitignored)
+    └── example.wasm      # Compiled WASM
+```
+
+## Complete Example
+
+See the [examples/simple/](../examples/simple/) directory for a working demo with:
+- 5 WASM functions with different parameter/return types
+- Normal Go functions (no `js.Value` signatures)
+- Unit tests
+- TinyGo build with size optimizations
+- TypeScript web demo
+- TypeScript verification tests
 
 ## FAQ
 
 ### Do I need to write tests?
 
-**No.** Tests are optional. gowasm-bindgen infers types directly from your function signatures. However, you should still write tests for correctness!
+**No.** Tests are optional. gowasm-bindgen infers types directly from your function signatures:
+
+```go
+// No test needed - type inference is automatic
+func Greet(name string) string {
+    return "Hello, " + name
+}
+// → TypeScript: greet(name: string): Promise<string>
+```
+
+However, you should still write tests for correctness!
 
 ### Why source-based instead of annotations?
 
