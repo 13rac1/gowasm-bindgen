@@ -29,6 +29,6 @@ func GetInfo(name string) Info {
 }
 
 func main() {
-	// Keep the program running
-	<-make(chan struct{})
+	// Keep the program running to receive JavaScript calls
+	select {}
 }
