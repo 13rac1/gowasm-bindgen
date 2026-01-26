@@ -212,6 +212,38 @@ func TestGenerateWorkerClassMethod(t *testing.T) {
 			},
 			want: "getUser(id: number): Promise<GetUserResult>",
 		},
+		{
+			name: "callback parameter",
+			fn: parser.GoFunction{
+				Name: "ForEach",
+				Params: []parser.GoParameter{
+					{Name: "items", Type: parser.GoType{Kind: parser.KindSlice, Elem: &parser.GoType{Name: "string", Kind: parser.KindPrimitive}}},
+					{Name: "cb", Type: parser.GoType{Kind: parser.KindFunction, CallbackParams: []parser.GoType{{Name: "string", Kind: parser.KindPrimitive}}}},
+				},
+			},
+			want: "registerCallback",
+		},
+		{
+			name: "with documentation",
+			fn: parser.GoFunction{
+				Name: "Greet",
+				Doc:  "Greets a user.",
+				Params: []parser.GoParameter{
+					{Name: "name", Type: parser.GoType{Name: "string", Kind: parser.KindPrimitive}},
+				},
+				Returns: []parser.GoType{
+					{Name: "string", Kind: parser.KindPrimitive},
+				},
+			},
+			want: "* Greets a user.",
+		},
+		{
+			name: "void function",
+			fn: parser.GoFunction{
+				Name: "DoSomething",
+			},
+			want: "Promise<void>",
+		},
 	}
 
 	for _, tt := range tests {
