@@ -31,19 +31,19 @@ check: format lint test
 # Remove build artifacts and generated test files
 clean:
 	rm -rf bin/
-	rm -f testdata/e2e/test.wasm testdata/e2e/client.ts testdata/e2e/wasm_exec.js testdata/e2e/wasm/bindings_gen.go
+	rm -f test/e2e/test.wasm test/e2e/client.ts test/e2e/wasm_exec.js test/e2e/wasm/bindings_gen.go
 	go clean -cache -testcache
 
 # End-to-end test: build WASM, generate bindings, run TypeScript tests
 test-e2e: build
 	# Copy wasm_exec.js from Go installation
-	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" testdata/e2e/
+	cp "$$(go env GOROOT)/lib/wasm/wasm_exec.js" test/e2e/
 	# Generate TypeScript client and Go bindings
-	./bin/gowasm-bindgen --output testdata/e2e/client.ts --go-output testdata/e2e/wasm/bindings_gen.go --sync testdata/e2e/wasm/main.go
+	./bin/gowasm-bindgen --output test/e2e/client.ts --go-output test/e2e/wasm/bindings_gen.go --sync test/e2e/wasm/main.go
 	# Build WASM binary (includes generated bindings)
-	GOOS=js GOARCH=wasm go build -o testdata/e2e/test.wasm ./testdata/e2e/wasm/
+	GOOS=js GOARCH=wasm go build -o test/e2e/test.wasm ./test/e2e/wasm/
 	# Run TypeScript tests
-	npx tsx --test testdata/e2e/verify_test.ts
+	npx tsx --test test/e2e/verify_test.ts
 
 # Browser test: build example and run Playwright tests
 test-example-browser:

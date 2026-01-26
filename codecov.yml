@@ -16,7 +16,7 @@ flags:
     carryforward: true
   typescript:
     paths:
-      - testdata/
+      - test/
       - examples/
     carryforward: true
 

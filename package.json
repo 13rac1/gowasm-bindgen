@@ -1,11 +1,11 @@
 {
   "type": "module",
   "scripts": {
-    "lint": "eslint 'example/**/*.ts' 'testdata/**/*.ts'",
-    "lint:fix": "eslint --fix 'example/**/*.ts' 'testdata/**/*.ts'",
-    "format": "prettier --write 'example/**/*.ts' 'testdata/**/*.ts'",
-    "format:check": "prettier --check 'example/**/*.ts' 'testdata/**/*.ts'",
-    "typecheck": "tsc --noEmit -p example/tsconfig.json && tsc --noEmit -p example/web/tsconfig.json && tsc --noEmit -p testdata/e2e/tsconfig.json"
+    "lint": "eslint 'example/**/*.ts' 'test/**/*.ts'",
+    "lint:fix": "eslint --fix 'example/**/*.ts' 'test/**/*.ts'",
+    "format": "prettier --write 'example/**/*.ts' 'test/**/*.ts'",
+    "format:check": "prettier --check 'example/**/*.ts' 'test/**/*.ts'",
+    "typecheck": "tsc --noEmit -p example/tsconfig.json && tsc --noEmit -p example/web/tsconfig.json && tsc --noEmit -p test/e2e/tsconfig.json"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.2",
