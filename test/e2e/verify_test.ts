@@ -6,12 +6,12 @@ import { readFile } from "node:fs/promises";
 import "./wasm_exec.js";
 
 // Import generated client
-import { Main } from "./client.js";
+import { GoWasm } from "./client.js";
 
 void test("WASM functions with TypeScript types", async () => {
   // Load WASM using generated client
   const wasmCode = await readFile("./test/e2e/test.wasm");
-  const wasm = await Main.init(wasmCode);
+  const wasm = await GoWasm.init(wasmCode);
 
   // Test greet function - type-safe!
   const greeting: string = wasm.greet("Node");

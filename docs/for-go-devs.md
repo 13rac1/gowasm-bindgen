@@ -29,7 +29,7 @@ gowasm-bindgen reads your Go source code, infers types from function signatures,
 1. TypeScript client with proper types (`myFunc(name: string): Promise<string>`)
 2. Go WASM bindings that handle the `js.Value` conversions automatically
 
-Your package name becomes the TypeScript class name (e.g., `package main` → `Main` class).
+The TypeScript class name is derived from the directory name (e.g., `wasm/` → `GoWasm` class). Override with `--class-name`.
 
 ## How It Works
 
@@ -135,7 +135,7 @@ interface User {
     status: string;
 }
 
-class Main {
+class GoWasm {
     formatUser(name: string, age: number, active: boolean): Promise<User>;
 }
 ```
@@ -156,7 +156,7 @@ func Divide(a, b int) (int, error) {
 This generates:
 
 ```typescript
-class Main {
+class GoWasm {
     // Throws on error, returns number on success
     divide(a: number, b: number): Promise<number>;
 }
@@ -228,7 +228,7 @@ func ForEach(items []string, callback func(string, int)) {
 This generates:
 
 ```typescript
-class Main {
+class GoWasm {
     // callback parameter type is inferred
     forEach(items: string[], callback: (arg0: string, arg1: number) => void): Promise<void>;
 }
@@ -323,8 +323,8 @@ func init() {
 
 4. **Use in TypeScript**:
    ```typescript
-   import { Main } from './client';
-   const wasm = await Main.init('./worker.js');
+   import { GoWasm } from './client';
+   const wasm = await GoWasm.init('./worker.js');
    const result = await wasm.greet('World');
    ```
 
@@ -338,20 +338,20 @@ func init() {
 
 ## Generated API
 
-gowasm-bindgen generates a TypeScript class with your package name:
+gowasm-bindgen generates a TypeScript class with a name derived from the directory (e.g., `wasm/` → `GoWasm`):
 
 ```typescript
 // Worker mode (default): generated client.ts
-export class Main {
-  static async init(workerUrl: string): Promise<Main>;
+export class GoWasm {
+  static async init(workerUrl: string): Promise<GoWasm>;
   greet(name: string): Promise<string>;
   calculate(a: number, b: number, op: string): Promise<number>;
   terminate(): void;
 }
 
 // Sync mode (-m sync): generated client.ts
-export class Main {
-  static async init(wasmSource: string | BufferSource): Promise<Main>;
+export class GoWasm {
+  static async init(wasmSource: string | BufferSource): Promise<GoWasm>;
   greet(name: string): string;  // No Promise - synchronous
   calculate(a: number, b: number, op: string): number;
 }
@@ -362,9 +362,9 @@ The sync mode `init()` accepts either a URL string (browser) or `BufferSource` (
 Your TypeScript users import and use it:
 
 ```typescript
-import { Main } from './generated/client';
+import { GoWasm } from './generated/client';
 
-const wasm = await Main.init('./worker.js');
+const wasm = await GoWasm.init('./worker.js');
 const result = await wasm.greet('World');
 wasm.terminate();
 ```

@@ -27,16 +27,18 @@ func run() error {
 	var mode string
 	var verbose bool
 	var wasmURL string
+	var className string
 
 	flag.StringVarP(&tsOutput, "ts-output", "t", "", "TypeScript output file (e.g., client.ts)")
 	flag.StringVarP(&goOutput, "go-output", "g", "", "Go bindings output file (e.g., bindings_gen.go)")
 	flag.StringVarP(&mode, "mode", "m", "worker", "generation mode: 'sync' or 'worker'")
 	flag.BoolVarP(&verbose, "verbose", "v", false, "enable verbose debug output")
 	flag.StringVarP(&wasmURL, "wasm-url", "w", "", "WASM URL in generated fetch() (default: <dirname>.wasm)")
+	flag.StringVarP(&className, "class-name", "c", "", "TypeScript class name (default: Go<DirName>)")
 	flag.Parse()
 
 	// Validate flags
-	usage := "Usage: gowasm-bindgen <source.go> -t client.ts [-g bindings_gen.go] [-m sync|worker] [-w app.wasm]"
+	usage := "Usage: gowasm-bindgen <source.go> -t client.ts [-g bindings_gen.go] [-m sync|worker] [-w app.wasm] [-c ClassName]"
 	if flag.NArg() == 0 {
 		return fmt.Errorf("missing source file argument\n\n%s", usage)
 	}
@@ -54,6 +56,7 @@ func run() error {
 		fmt.Fprintf(os.Stderr, "[DEBUG] TS output: %s\n", tsOutput)
 		fmt.Fprintf(os.Stderr, "[DEBUG] Mode: %s\n", mode)
 		fmt.Fprintf(os.Stderr, "[DEBUG] WASM URL: %s\n", wasmURL)
+		fmt.Fprintf(os.Stderr, "[DEBUG] Class name: %s\n", className)
 	}
 
 	// Check if source file exists
@@ -62,13 +65,18 @@ func run() error {
 	}
 
 	// Derive default WASM URL from directory name if not specified
+	dirName := filepath.Base(filepath.Dir(sourceFile))
 	if wasmURL == "" {
-		dirName := filepath.Base(filepath.Dir(sourceFile))
 		if dirName == "." || dirName == "" {
 			wasmURL = "main.wasm"
 		} else {
 			wasmURL = dirName + ".wasm"
 		}
+	}
+
+	// Derive default class name from directory name if not specified
+	if className == "" {
+		className = generator.DeriveClassName(dirName)
 	}
 
 	// Parse source file
@@ -140,18 +148,18 @@ func run() error {
 		if verbose {
 			fmt.Fprintf(os.Stderr, "[DEBUG] Generating sync mode client\n")
 		}
-		return generateSyncOutput(parsed, tsOutput)
+		return generateSyncOutput(parsed, tsOutput, className)
 	}
 
 	if verbose {
 		fmt.Fprintf(os.Stderr, "[DEBUG] Generating worker mode client\n")
 	}
-	return generateWorkerOutput(parsed, tsOutput, wasmURL)
+	return generateWorkerOutput(parsed, tsOutput, wasmURL, className)
 }
 
-func generateSyncOutput(parsed *parser.ParsedFile, output string) error {
+func generateSyncOutput(parsed *parser.ParsedFile, output, className string) error {
 	// Generate TypeScript class-based client
-	content := generator.Generate(parsed, filepath.Base(output))
+	content := generator.Generate(parsed, filepath.Base(output), className)
 
 	// Write output
 	if err := os.WriteFile(output, []byte(content), 0600); err != nil {
@@ -160,8 +168,8 @@ func generateSyncOutput(parsed *parser.ParsedFile, output string) error {
 
 	fmt.Printf("\nGenerated %s with %d function(s) (sync mode)\n", output, len(parsed.Functions))
 	fmt.Println("\nUsage:")
-	fmt.Printf("  import { %s } from './client';\n", toClassName(parsed.Package))
-	fmt.Printf("  const wasm = await %s.init('./example.wasm');\n", toClassName(parsed.Package))
+	fmt.Printf("  import { %s } from './client';\n", className)
+	fmt.Printf("  const wasm = await %s.init('./example.wasm');\n", className)
 	if len(parsed.Functions) > 0 {
 		exampleFunc := lowerFirst(parsed.Functions[0].Name)
 		fmt.Printf("  const result = wasm.%s(...);\n", exampleFunc)
@@ -169,7 +177,7 @@ func generateSyncOutput(parsed *parser.ParsedFile, output string) error {
 	return nil
 }
 
-func generateWorkerOutput(parsed *parser.ParsedFile, output, wasmPath string) error {
+func generateWorkerOutput(parsed *parser.ParsedFile, output, wasmPath, className string) error {
 	outputDir := filepath.Dir(output)
 
 	// Generate worker.js
@@ -179,7 +187,7 @@ func generateWorkerOutput(parsed *parser.ParsedFile, output, wasmPath string) er
 	}
 
 	// Generate client.ts
-	clientContent := generator.GenerateClient(parsed, filepath.Base(output))
+	clientContent := generator.GenerateClient(parsed, filepath.Base(output), className)
 	if err := os.WriteFile(output, []byte(clientContent), 0600); err != nil {
 		return fmt.Errorf("writing client: %w", err)
 	}
@@ -187,22 +195,14 @@ func generateWorkerOutput(parsed *parser.ParsedFile, output, wasmPath string) er
 	fmt.Printf("\nGenerated %s (Web Worker entry point)\n", workerPath)
 	fmt.Printf("Generated %s with %d function(s) (worker mode)\n", output, len(parsed.Functions))
 	fmt.Println("\nUsage:")
-	fmt.Printf("  import { %s } from './client';\n", toClassName(parsed.Package))
-	fmt.Printf("  const wasm = await %s.init('./worker.js');\n", toClassName(parsed.Package))
+	fmt.Printf("  import { %s } from './client';\n", className)
+	fmt.Printf("  const wasm = await %s.init('./worker.js');\n", className)
 	if len(parsed.Functions) > 0 {
 		exampleFunc := lowerFirst(parsed.Functions[0].Name)
 		fmt.Printf("  const result = await wasm.%s(...);\n", exampleFunc)
 	}
 	fmt.Printf("  wasm.terminate();\n")
 	return nil
-}
-
-// toClassName converts a Go package name to a TypeScript class name.
-func toClassName(packageName string) string {
-	if packageName == "" {
-		return "Wasm"
-	}
-	return strings.ToUpper(packageName[:1]) + packageName[1:]
 }
 
 // lowerFirst converts first letter to lowercase

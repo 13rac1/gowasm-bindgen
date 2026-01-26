@@ -23,8 +23,7 @@ const tsErrorCheck = `    if (result && typeof result === 'object' && '` + Error
 
 // Generate creates TypeScript class-based client for sync mode.
 // This generates a class that wraps globalThis function calls.
-func Generate(parsed *parser.ParsedFile, outputFile string) string {
-	className := toClassName(parsed.Package)
+func Generate(parsed *parser.ParsedFile, outputFile, className string) string {
 
 	var b strings.Builder
 	b.WriteString(GenerateHeader(parsed.Package, outputFile))
@@ -199,15 +198,6 @@ func InterfaceName(funcName string) string {
 	}
 	// Capitalize first letter and append "Result"
 	return strings.ToUpper(funcName[:1]) + funcName[1:] + "Result"
-}
-
-// toClassName converts a Go package name to a TypeScript class name.
-// e.g., "wasm" -> "Wasm", "calculator" -> "Calculator"
-func toClassName(packageName string) string {
-	if packageName == "" {
-		return "Wasm"
-	}
-	return strings.ToUpper(packageName[:1]) + packageName[1:]
 }
 
 // determineReturnType returns the TypeScript return type for a Go function.

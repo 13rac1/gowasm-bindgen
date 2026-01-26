@@ -64,10 +64,10 @@ export interface FormatUserResult {
   active: boolean;
 }
 
-export class Main {
-  static async init(workerUrl: string): Promise<Main>;
-  Greet(name: string): Promise<string>;
-  FormatUser(name: string, age: number, active: boolean): Promise<FormatUserResult>;
+export class GoMain {
+  static async init(workerUrl: string): Promise<GoMain>;
+  greet(name: string): Promise<string>;
+  formatUser(name: string, age: number, active: boolean): Promise<FormatUserResult>;
   terminate(): void;
 }
 ```
@@ -121,15 +121,15 @@ gowasm-bindgen main.go --ts-output client.ts
 ## Usage
 
 ```typescript
-import { Main } from './client';
+import { GoMain } from './client';
 
 // Worker mode (default) - non-blocking
-const wasm = await Main.init('./worker.js');
+const wasm = await GoMain.init('./worker.js');
 const greeting = await wasm.greet('World');
 wasm.terminate();
 
 // Sync mode (--mode sync)
-const wasm = await Main.init('./example.wasm');
+const wasm = await GoMain.init('./example.wasm');
 const greeting = wasm.greet('World');  // no await needed
 ```
 

@@ -23,6 +23,7 @@ gowasm-bindgen <source.go> --ts-output <file> [options]
 |------|---------|-------------|
 | `-g, --go-output FILE` | (none) | Go bindings output path |
 | `-m, --mode MODE` | `worker` | Generation mode: `sync` or `worker` |
+| `-c, --class-name NAME` | `Go<DirName>` | TypeScript class name |
 | `-w, --wasm-url URL` | `<dirname>.wasm` | WASM URL in generated fetch() |
 | `-v, --verbose` | false | Enable debug output to stderr |
 
@@ -65,6 +66,22 @@ gowasm-bindgen main.go --ts-output client.ts --wasm-url dist/app.wasm
 
 The generated `worker.js` will load WASM from `dist/app.wasm` instead of the default.
 
+### Custom Class Name
+
+The default class name is derived from the directory: `Go` + TitleCase(dirname).
+
+| Directory | Default Class Name |
+|-----------|-------------------|
+| `wasm/` | `GoWasm` |
+| `image-wasm/` | `GoImageWasm` |
+| `go-calculator/` | `GoCalculator` |
+
+Override with `--class-name`:
+
+```bash
+gowasm-bindgen wasm/main.go --ts-output client.ts --class-name ImageProcessor
+```
+
 ### Debug Output
 
 Troubleshoot generation issues:
@@ -88,19 +105,19 @@ Outputs to stderr:
 
 ### client.ts
 
-The generated TypeScript client exports a class named after your Go package:
+The generated TypeScript client exports a class with a name derived from the directory (or set via `--class-name`):
 
 ```typescript
-// Worker mode
-export class Main {
-  static async init(workerUrl: string): Promise<Main>;
+// Worker mode (from wasm/ directory)
+export class GoWasm {
+  static async init(workerUrl: string): Promise<GoWasm>;
   greet(name: string): Promise<string>;
   terminate(): void;
 }
 
 // Sync mode
-export class Main {
-  static async init(wasmSource: string | BufferSource): Promise<Main>;
+export class GoWasm {
+  static async init(wasmSource: string | BufferSource): Promise<GoWasm>;
   greet(name: string): string;  // No Promise
 }
 ```

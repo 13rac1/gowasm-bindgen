@@ -80,7 +80,9 @@ func TestGenerate(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := Generate(tt.parsed, "client.ts")
+			// Capitalize package name for class name (simulating explicit --class-name)
+			className := strings.ToUpper(tt.parsed.Package[:1]) + tt.parsed.Package[1:]
+			got := Generate(tt.parsed, "client.ts", className)
 			for _, want := range tt.want {
 				if !strings.Contains(got, want) {
 					t.Errorf("Generate() missing %q in output:\n%s", want, got)
@@ -267,27 +269,6 @@ func TestInterfaceName(t *testing.T) {
 			got := InterfaceName(tt.funcName)
 			if got != tt.want {
 				t.Errorf("InterfaceName(%q) = %q, want %q", tt.funcName, got, tt.want)
-			}
-		})
-	}
-}
-
-func TestToClassName(t *testing.T) {
-	tests := []struct {
-		packageName string
-		want        string
-	}{
-		{"wasm", "Wasm"},
-		{"calculator", "Calculator"},
-		{"mypackage", "Mypackage"},
-		{"", "Wasm"},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.packageName, func(t *testing.T) {
-			got := toClassName(tt.packageName)
-			if got != tt.want {
-				t.Errorf("toClassName(%q) = %q, want %q", tt.packageName, got, tt.want)
 			}
 		})
 	}

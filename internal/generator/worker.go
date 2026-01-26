@@ -62,8 +62,7 @@ self.onmessage = (event) => {
 }
 
 // GenerateClient creates client.ts with a class-based API for worker mode.
-func GenerateClient(parsed *parser.ParsedFile, outputFile string) string {
-	className := toClassName(parsed.Package)
+func GenerateClient(parsed *parser.ParsedFile, outputFile, className string) string {
 
 	var b strings.Builder
 
