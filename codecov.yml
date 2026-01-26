@@ -1,0 +1,25 @@
+coverage:
+  status:
+    project:
+      default:
+        target: 70%
+        threshold: 5%
+    patch:
+      default:
+        target: 80%
+
+flags:
+  go:
+    paths:
+      - internal/
+      - main.go
+    carryforward: true
+  typescript:
+    paths:
+      - testdata/
+      - examples/
+    carryforward: true
+
+comment:
+  layout: "reach,diff,flags,files"
+  behavior: default

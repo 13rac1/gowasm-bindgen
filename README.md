@@ -1,5 +1,7 @@
 # gowasm-bindgen
 
+[![codecov](https://codecov.io/gh/13rac1/gowasm-bindgen/graph/badge.svg)](https://codecov.io/gh/13rac1/gowasm-bindgen)
+
 **Type-safe Go in the browser.**
 
 Generate TypeScript declarations and Go WASM bindings from your Go source code. Ship 90KB gzipped binaries with TinyGo.
