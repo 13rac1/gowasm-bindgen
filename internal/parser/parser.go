@@ -310,3 +310,74 @@ func isPrimitive(name string) bool {
 	}
 	return primitives[name]
 }
+
+// HasSelectInMain checks if a Go source file has a main function containing select {}.
+// This is required for WASM modules to stay alive and receive JavaScript calls.
+func HasSelectInMain(path string) (bool, error) {
+	fset := token.NewFileSet()
+	file, err := parser.ParseFile(fset, path, nil, 0)
+	if err != nil {
+		return false, fmt.Errorf("failed to parse %s: %w", path, err)
+	}
+
+	for _, decl := range file.Decls {
+		funcDecl, ok := decl.(*ast.FuncDecl)
+		if !ok {
+			continue
+		}
+		if funcDecl.Name.Name != "main" || funcDecl.Recv != nil {
+			continue
+		}
+		// Found main function, check for select {}
+		return containsEmptySelect(funcDecl.Body), nil
+	}
+
+	// No main function found
+	return false, nil
+}
+
+// containsEmptySelect recursively checks if a block contains an empty select statement.
+func containsEmptySelect(block *ast.BlockStmt) bool {
+	if block == nil {
+		return false
+	}
+	for _, stmt := range block.List {
+		if hasEmptySelect(stmt) {
+			return true
+		}
+	}
+	return false
+}
+
+// hasEmptySelect checks if a statement is or contains an empty select.
+func hasEmptySelect(stmt ast.Stmt) bool {
+	switch s := stmt.(type) {
+	case *ast.SelectStmt:
+		// Empty select has no cases
+		return s.Body == nil || len(s.Body.List) == 0
+	case *ast.BlockStmt:
+		return containsEmptySelect(s)
+	case *ast.IfStmt:
+		if containsEmptySelect(s.Body) {
+			return true
+		}
+		if s.Else != nil {
+			return hasEmptySelect(s.Else)
+		}
+	case *ast.ForStmt:
+		return containsEmptySelect(s.Body)
+	case *ast.RangeStmt:
+		return containsEmptySelect(s.Body)
+	case *ast.SwitchStmt:
+		return containsEmptySelect(s.Body)
+	case *ast.TypeSwitchStmt:
+		return containsEmptySelect(s.Body)
+	case *ast.CaseClause:
+		for _, bodyStmt := range s.Body {
+			if hasEmptySelect(bodyStmt) {
+				return true
+			}
+		}
+	}
+	return false
+}

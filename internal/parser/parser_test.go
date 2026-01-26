@@ -751,3 +751,128 @@ func TestWorkerCallbackCode(t *testing.T) {
 		})
 	}
 }
+
+func TestHasSelectInMain(t *testing.T) {
+	tests := []struct {
+		name     string
+		src      string
+		expected bool
+	}{
+		{
+			name: "main with select {}",
+			src: `package main
+
+func main() {
+	// setup code
+	select {}
+}
+`,
+			expected: true,
+		},
+		{
+			name: "main without select",
+			src: `package main
+
+func main() {
+	println("hello")
+}
+`,
+			expected: false,
+		},
+		{
+			name: "no main function",
+			src: `package main
+
+func other() {
+	select {}
+}
+`,
+			expected: false,
+		},
+		{
+			name: "select in nested if",
+			src: `package main
+
+func main() {
+	if true {
+		select {}
+	}
+}
+`,
+			expected: true,
+		},
+		{
+			name: "select in for loop",
+			src: `package main
+
+func main() {
+	for {
+		select {}
+	}
+}
+`,
+			expected: true,
+		},
+		{
+			name: "select with cases (not empty)",
+			src: `package main
+
+func main() {
+	ch := make(chan int)
+	select {
+	case <-ch:
+	}
+}
+`,
+			expected: false,
+		},
+		{
+			name: "method named main ignored",
+			src: `package main
+
+type S struct{}
+
+func (s S) main() {
+	select {}
+}
+
+func main() {
+	println("no select")
+}
+`,
+			expected: false,
+		},
+		{
+			name: "select in switch case",
+			src: `package main
+
+func main() {
+	switch x := 1; x {
+	case 1:
+		select {}
+	}
+}
+`,
+			expected: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			tmpDir := t.TempDir()
+			tmpFile := filepath.Join(tmpDir, "main.go")
+			if err := os.WriteFile(tmpFile, []byte(tt.src), 0600); err != nil {
+				t.Fatalf("failed to write temp file: %v", err)
+			}
+
+			result, err := HasSelectInMain(tmpFile)
+			if err != nil {
+				t.Fatalf("HasSelectInMain() error: %v", err)
+			}
+
+			if result != tt.expected {
+				t.Errorf("HasSelectInMain() = %v, want %v", result, tt.expected)
+			}
+		})
+	}
+}

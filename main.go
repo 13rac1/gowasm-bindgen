@@ -83,6 +83,19 @@ func run() error {
 			"Functions must be exported (start with uppercase letter) and have no receiver", sourceFile)
 	}
 
+	// Check for select {} in main (required for WASM to stay alive)
+	if parsed.Package == "main" {
+		hasSelect, err := parser.HasSelectInMain(sourceFile)
+		if err != nil {
+			return fmt.Errorf("checking for select {}: %w", err)
+		}
+		if !hasSelect {
+			return fmt.Errorf("main() does not contain 'select {}' - " +
+				"WASM modules require this to block forever and receive JavaScript calls - " +
+				"add 'select {}' at the end of your main() function")
+		}
+	}
+
 	// Validate functions
 	if err := validator.ValidateFunctions(parsed); err != nil {
 		return fmt.Errorf("validation failed: %w", err)
