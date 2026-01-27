@@ -17,12 +17,22 @@ linters:
     - ineffassign       # Unused assignments
     - bodyclose         # HTTP response body not closed
     - nilerr            # Returning nil after checking error
+    - durationcheck     # Detects duration*duration bugs
+    - makezero          # Slice declarations with non-zero length
+    - nilnil            # Simultaneous nil error and nil value
+    - wastedassign      # Wasted assignments
 
     # Style
     - misspell          # Spelling mistakes
     - unconvert         # Unnecessary conversions
     - unparam           # Unused function parameters
     - unused            # Unused code
+    - dupword           # Duplicate words in comments
+    - dogsled           # Too many blank identifiers
+    - errname           # Error naming conventions
+    - goprintffuncname  # Printf function naming
+    - nakedret          # Naked returns in long functions
+    - usestdlibvars     # Use stdlib constants
 
     # Complexity
     - gocyclo           # Cyclomatic complexity
@@ -31,6 +41,18 @@ linters:
     # Error handling
     - errorlint         # Error wrapping issues
     - wrapcheck         # Errors from external packages should be wrapped
+
+    # Security
+    - asciicheck        # Non-ASCII identifiers
+    - bidichk           # Dangerous unicode sequences
+
+    # Code quality
+    - copyloopvar       # Loop variable copying issues
+    - dupl              # Duplicate code detection
+    - fatcontext        # Nested contexts in loops
+    - gocheckcompilerdirectives  # Validates //go: directives
+    - gochecknoinits    # No init functions
+    - intrange          # Integer range suggestions
 
 linters-settings:
   gocyclo:
