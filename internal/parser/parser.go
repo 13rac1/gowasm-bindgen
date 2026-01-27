@@ -362,6 +362,11 @@ func HasSelectInMain(path string) (bool, error) {
 		return false, nil
 	}
 
+	// Function declaration without body (e.g., "func main()" with no braces)
+	if mainFunc.Body == nil {
+		return false, nil
+	}
+
 	// Use ast.Inspect to find empty select statements
 	found := false
 	ast.Inspect(mainFunc.Body, func(n ast.Node) bool {
