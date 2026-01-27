@@ -6,7 +6,7 @@
 //
 // Usage:
 //
-//	gowasm-bindgen main.go --output client.ts --go-output bindings_gen.go
+//	gowasm-bindgen wasm/main.go --output generated
 //
 // For full documentation, see https://13rac1.github.io/gowasm-bindgen/
 package main

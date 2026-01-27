@@ -262,7 +262,7 @@ const host = config["host"];
 The example uses `moduleResolution: "bundler"` because:
 - Source code (`src/app.ts`) is bundled with esbuild for browser use
 - Test code (`src/verify_test.ts`) runs in Node.js with the native test runner
-- The bundler handles resolving imports from `generated/client.ts`
+- The bundler handles resolving imports from `generated/go-wasm.ts`
 
 **Key notes:**
 - `types: ["node"]` enables Node.js built-ins for tests, but browser code shouldn't use them

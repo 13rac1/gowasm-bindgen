@@ -60,7 +60,7 @@ Functions are methods on a class instance, not true object-oriented:
 
 ```typescript
 // gowasm-bindgen: methods on WASM instance
-const wasm = await Main.init('./worker.js');
+const wasm = await GoWasm.init('./worker.js');
 const user = await wasm.createUser("Alice", 30);
 
 // Rust wasm-bindgen: exported structs become classes

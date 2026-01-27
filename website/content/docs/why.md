@@ -111,15 +111,15 @@ func main() {
 Run gowasm-bindgen:
 
 ```bash
-gowasm-bindgen main.go --ts-output client.ts --go-output bindings_gen.go
+gowasm-bindgen wasm/main.go --output generated
 ```
 
 Use typed TypeScript:
 
 ```typescript
-import { Main } from './client';
+import { GoWasm } from './generated/go-wasm';
 
-const wasm = await Main.init('./main.wasm');
+const wasm = await GoWasm.init('./generated/worker.js');
 
 const greeting = await wasm.greet("World");  // string
 const oops = await wasm.greet(123);          // TypeScript Error!
@@ -162,11 +162,11 @@ func wasmGreet(_ js.Value, args []js.Value) interface{} {
 
 All the tedious `js.Value` handling, generated automatically.
 
-### 2. `client.ts` - TypeScript Client
+### 2. `go-wasm.ts` - TypeScript Client
 
 ```typescript
-export class Main {
-    static async init(wasmSource: string | BufferSource): Promise<Main>;
+export class GoWasm {
+    static async init(workerUrl: string): Promise<GoWasm>;
 
     /** Greet returns a greeting for the given name. */
     greet(name: string): Promise<string>;

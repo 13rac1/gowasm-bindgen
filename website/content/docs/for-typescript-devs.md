@@ -357,7 +357,7 @@ This is NOT "ignore the result"—it explicitly marks a Promise as intentionally
 
 ## TypeScript Configuration
 
-The generated `client.ts` is just a TypeScript file you can import directly. No special tsconfig needed beyond standard module resolution.
+The generated TypeScript file is just a regular TypeScript file you can import directly. No special tsconfig needed beyond standard module resolution.
 
 ## Next Steps
 

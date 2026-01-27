@@ -35,7 +35,7 @@ make all
 
 # This runs:
 # 1. setup     - Copies wasm_exec.js from TinyGo
-# 2. generate  - Creates client.ts, worker.js, bindings_gen.go
+# 2. generate  - Creates go-wasm.ts, worker.js, bindings_gen.go
 # 3. build     - Compiles Go to WASM with TinyGo
 # 4. typecheck - Validates TypeScript types
 # 5. verify    - Runs TypeScript tests
@@ -56,13 +56,13 @@ make build-go   # Build with standard Go
 By default, gowasm-bindgen generates a Web Worker for non-blocking async calls:
 
 ```bash
-make generate  # Creates generated/client.ts + generated/worker.js
+make generate  # Creates generated/go-wasm.ts + generated/worker.js
 ```
 
 ```typescript
-import { Main } from './generated/client';
+import { GoWasm } from './generated/go-wasm';
 
-const wasm = await Main.init('./worker.js');
+const wasm = await GoWasm.init('./worker.js');
 
 // Non-blocking! UI stays responsive
 const greeting = await wasm.greet('World');
@@ -76,19 +76,19 @@ wasm.terminate();  // Clean up when done
 Use `--mode sync` flag for synchronous calls that block the main thread:
 
 ```bash
-make generate-sync  # Creates generated/client.ts only (no worker.js)
+make generate-sync  # Creates generated/go-wasm.ts only (no worker.js)
 ```
 
 ```typescript
-import { Main } from './generated/client';
+import { GoWasm } from './generated/go-wasm';
 
-const wasm = await Main.init('./example.wasm');  // async load
+const wasm = await GoWasm.init('./wasm.wasm');  // async load
 const greeting = wasm.greet('World');  // sync call, no await
 ```
 
 ## Generated Output
 
-### TypeScript Client (`generated/client.ts`)
+### TypeScript Client (`generated/go-wasm.ts`)
 
 ```typescript
 export interface FormatUserResult {
@@ -96,8 +96,8 @@ export interface FormatUserResult {
   status: string;
 }
 
-export class Main {
-  static async init(workerUrl: string): Promise<Main>;
+export class GoWasm {
+  static async init(workerUrl: string): Promise<GoWasm>;
   greet(name: string): Promise<string>;
   calculate(a: number, b: number, op: string): Promise<number>;
   formatUser(name: string, age: number, active: boolean): Promise<FormatUserResult>;
