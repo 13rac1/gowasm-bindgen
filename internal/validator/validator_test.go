@@ -506,3 +506,91 @@ func TestValidateFunctions_AnonymousFields(t *testing.T) {
 		t.Errorf("expected error about anonymous field, got: %v", err)
 	}
 }
+
+func TestValidateFunctions_ErrorReturnType(t *testing.T) {
+	// KindError should be valid when in return position
+	parsed := &parser.ParsedFile{
+		Package: "wasm",
+		Functions: []parser.GoFunction{
+			{
+				Name:   "MayFail",
+				Params: []parser.GoParameter{},
+				Returns: []parser.GoType{
+					{Name: "error", Kind: parser.KindError, IsError: true},
+				},
+			},
+		},
+		Types: map[string]*parser.GoType{},
+	}
+
+	err := ValidateFunctions(parsed)
+	if err != nil {
+		t.Errorf("expected no error for error return type, got: %v", err)
+	}
+}
+
+func TestValidateFunctions_UnknownTypeKind(t *testing.T) {
+	// Unknown type kind should return error
+	parsed := &parser.ParsedFile{
+		Package: "wasm",
+		Functions: []parser.GoFunction{
+			{
+				Name: "BadFunc",
+				Params: []parser.GoParameter{
+					{Name: "x", Type: parser.GoType{Name: "weird", Kind: parser.TypeKind(999)}},
+				},
+				Returns: []parser.GoType{},
+			},
+		},
+		Types: map[string]*parser.GoType{},
+	}
+
+	err := ValidateFunctions(parsed)
+	if err == nil {
+		t.Fatal("expected error for unknown type kind, got nil")
+	}
+	if !strings.Contains(err.Error(), "unknown type kind") {
+		t.Errorf("expected error about unknown type kind, got: %v", err)
+	}
+}
+
+func TestValidateFunctions_NilElemTypes(t *testing.T) {
+	// Slice with nil Elem should still pass (returns nil for validation)
+	parsed := &parser.ParsedFile{
+		Package: "wasm",
+		Functions: []parser.GoFunction{
+			{
+				Name: "SliceFunc",
+				Params: []parser.GoParameter{
+					{Name: "s", Type: parser.GoType{Name: "[]any", Kind: parser.KindSlice, Elem: nil}},
+				},
+				Returns: []parser.GoType{},
+			},
+			{
+				Name: "PointerFunc",
+				Params: []parser.GoParameter{
+					{Name: "p", Type: parser.GoType{Name: "*any", Kind: parser.KindPointer, Elem: nil}},
+				},
+				Returns: []parser.GoType{},
+			},
+			{
+				Name: "MapFunc",
+				Params: []parser.GoParameter{
+					{Name: "m", Type: parser.GoType{
+						Name:  "map[string]any",
+						Kind:  parser.KindMap,
+						Key:   &parser.GoType{Name: "string", Kind: parser.KindPrimitive},
+						Value: nil,
+					}},
+				},
+				Returns: []parser.GoType{},
+			},
+		},
+		Types: map[string]*parser.GoType{},
+	}
+
+	err := ValidateFunctions(parsed)
+	if err != nil {
+		t.Errorf("expected no error for nil elem types, got: %v", err)
+	}
+}

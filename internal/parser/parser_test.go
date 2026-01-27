@@ -1053,3 +1053,61 @@ func GetUser() User {
 		t.Error("expected anonymous field with empty name for validator to detect")
 	}
 }
+
+func TestIsExported(t *testing.T) {
+	tests := []struct {
+		name string
+		want bool
+	}{
+		{"Exported", true},
+		{"exported", false},
+		{"", false},
+		{"A", true},
+		{"a", false},
+		{"_private", false},
+		{"URL", true},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			got := isExported(tt.name)
+			if got != tt.want {
+				t.Errorf("isExported(%q) = %v, want %v", tt.name, got, tt.want)
+			}
+		})
+	}
+}
+
+func TestPrimitiveToTS_AllTypes(t *testing.T) {
+	tests := []struct {
+		goType string
+		want   string
+	}{
+		{"string", "string"},
+		{"int", "number"},
+		{"int8", "number"},
+		{"int16", "number"},
+		{"int32", "number"},
+		{"int64", "number"},
+		{"uint", "number"},
+		{"uint8", "number"},
+		{"uint16", "number"},
+		{"uint32", "number"},
+		{"uint64", "number"},
+		{"float32", "number"},
+		{"float64", "number"},
+		{"bool", "boolean"},
+		{"byte", "number"},
+		{"rune", "number"},
+		{"unknown", "any"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.goType, func(t *testing.T) {
+			got := primitiveToTS(tt.goType)
+			if got != tt.want {
+				t.Errorf("primitiveToTS(%q) = %q, want %q", tt.goType, got, tt.want)
+			}
+		})
+	}
+}
