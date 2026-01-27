@@ -11,6 +11,29 @@ import (
 	"unicode"
 )
 
+// primitiveTypes is a lookup table for Go primitive types.
+// Defined at package level to avoid allocation on each isPrimitive call.
+var primitiveTypes = map[string]bool{
+	"string":     true,
+	"int":        true,
+	"int8":       true,
+	"int16":      true,
+	"int32":      true,
+	"int64":      true,
+	"uint":       true,
+	"uint8":      true,
+	"uint16":     true,
+	"uint32":     true,
+	"uint64":     true,
+	"float32":    true,
+	"float64":    true,
+	"bool":       true,
+	"byte":       true,
+	"rune":       true,
+	"complex64":  true,
+	"complex128": true,
+}
+
 // ParseSourceFile parses a Go source file and extracts exported functions and types
 func ParseSourceFile(path string) (*ParsedFile, error) {
 	fset := token.NewFileSet()
@@ -89,6 +112,12 @@ func extractFunction(fn *ast.FuncDecl, types map[string]*GoType) GoFunction {
 
 // resolveType converts an AST type expression to GoType
 func resolveType(expr ast.Expr, types map[string]*GoType) GoType {
+	return resolveTypeWithVisited(expr, types, make(map[string]bool))
+}
+
+// resolveTypeWithVisited is the internal implementation that tracks visited types
+// to detect cycles in type definitions (e.g., type A B; type B A).
+func resolveTypeWithVisited(expr ast.Expr, types map[string]*GoType, visited map[string]bool) GoType {
 	switch t := expr.(type) {
 	case *ast.Ident:
 		// Check for error type
@@ -108,8 +137,17 @@ func resolveType(expr ast.Expr, types map[string]*GoType) GoType {
 			}
 		}
 
+		// Detect cycles in type references
+		if visited[t.Name] {
+			return GoType{
+				Name: t.Name,
+				Kind: KindUnsupported,
+			}
+		}
+
 		// Check if this is a defined type in the file
 		if knownType, ok := types[t.Name]; ok {
+			visited[t.Name] = true
 			return *knownType
 		}
 
@@ -120,7 +158,7 @@ func resolveType(expr ast.Expr, types map[string]*GoType) GoType {
 		}
 
 	case *ast.ArrayType:
-		elemType := resolveType(t.Elt, types)
+		elemType := resolveTypeWithVisited(t.Elt, types, visited)
 		if t.Len == nil {
 			// Slice
 			return GoType{
@@ -137,8 +175,8 @@ func resolveType(expr ast.Expr, types map[string]*GoType) GoType {
 		}
 
 	case *ast.MapType:
-		keyType := resolveType(t.Key, types)
-		valueType := resolveType(t.Value, types)
+		keyType := resolveTypeWithVisited(t.Key, types, visited)
+		valueType := resolveTypeWithVisited(t.Value, types, visited)
 		return GoType{
 			Name:  fmt.Sprintf("map[%s]%s", keyType.Name, valueType.Name),
 			Kind:  KindMap,
@@ -147,7 +185,7 @@ func resolveType(expr ast.Expr, types map[string]*GoType) GoType {
 		}
 
 	case *ast.StarExpr:
-		elemType := resolveType(t.X, types)
+		elemType := resolveTypeWithVisited(t.X, types, visited)
 		return GoType{
 			Name: "*" + elemType.Name,
 			Kind: KindPointer,
@@ -163,15 +201,23 @@ func resolveType(expr ast.Expr, types map[string]*GoType) GoType {
 
 		if t.Fields != nil {
 			for _, field := range t.Fields.List {
-				fieldType := resolveType(field.Type, types)
+				fieldType := resolveTypeWithVisited(field.Type, types, visited)
 				jsonTag := extractJSONTag(field.Tag)
 
-				for _, name := range field.Names {
+				if len(field.Names) == 0 {
+					// Anonymous/embedded field - add with empty name for validator to catch
 					structType.Fields = append(structType.Fields, GoField{
-						Name:    name.Name,
-						Type:    fieldType,
-						JSONTag: jsonTag,
+						Name: "",
+						Type: fieldType,
 					})
+				} else {
+					for _, name := range field.Names {
+						structType.Fields = append(structType.Fields, GoField{
+							Name:    name.Name,
+							Type:    fieldType,
+							JSONTag: jsonTag,
+						})
+					}
 				}
 			}
 		}
@@ -196,7 +242,7 @@ func resolveType(expr ast.Expr, types map[string]*GoType) GoType {
 		var params []GoType
 		if t.Params != nil {
 			for _, field := range t.Params.List {
-				paramType := resolveType(field.Type, types)
+				paramType := resolveTypeWithVisited(field.Type, types, visited)
 				// Functions can have unnamed params like func(string, int)
 				if len(field.Names) == 0 {
 					params = append(params, paramType)
@@ -288,27 +334,7 @@ func isExported(name string) bool {
 
 // isPrimitive checks if a type name is a Go primitive
 func isPrimitive(name string) bool {
-	primitives := map[string]bool{
-		"string":     true,
-		"int":        true,
-		"int8":       true,
-		"int16":      true,
-		"int32":      true,
-		"int64":      true,
-		"uint":       true,
-		"uint8":      true,
-		"uint16":     true,
-		"uint32":     true,
-		"uint64":     true,
-		"float32":    true,
-		"float64":    true,
-		"bool":       true,
-		"byte":       true,
-		"rune":       true,
-		"complex64":  true,
-		"complex128": true,
-	}
-	return primitives[name]
+	return primitiveTypes[name]
 }
 
 // HasSelectInMain checks if a Go source file has a main function containing select {}.
@@ -320,64 +346,32 @@ func HasSelectInMain(path string) (bool, error) {
 		return false, fmt.Errorf("failed to parse %s: %w", path, err)
 	}
 
+	// Find main function
+	var mainFunc *ast.FuncDecl
 	for _, decl := range file.Decls {
 		funcDecl, ok := decl.(*ast.FuncDecl)
 		if !ok {
 			continue
 		}
-		if funcDecl.Name.Name != "main" || funcDecl.Recv != nil {
-			continue
-		}
-		// Found main function, check for select {}
-		return containsEmptySelect(funcDecl.Body), nil
-	}
-
-	// No main function found
-	return false, nil
-}
-
-// containsEmptySelect recursively checks if a block contains an empty select statement.
-func containsEmptySelect(block *ast.BlockStmt) bool {
-	if block == nil {
-		return false
-	}
-	for _, stmt := range block.List {
-		if hasEmptySelect(stmt) {
-			return true
+		if funcDecl.Name.Name == "main" && funcDecl.Recv == nil {
+			mainFunc = funcDecl
+			break
 		}
 	}
-	return false
-}
+	if mainFunc == nil {
+		return false, nil
+	}
 
-// hasEmptySelect checks if a statement is or contains an empty select.
-func hasEmptySelect(stmt ast.Stmt) bool {
-	switch s := stmt.(type) {
-	case *ast.SelectStmt:
-		// Empty select has no cases
-		return s.Body == nil || len(s.Body.List) == 0
-	case *ast.BlockStmt:
-		return containsEmptySelect(s)
-	case *ast.IfStmt:
-		if containsEmptySelect(s.Body) {
-			return true
-		}
-		if s.Else != nil {
-			return hasEmptySelect(s.Else)
-		}
-	case *ast.ForStmt:
-		return containsEmptySelect(s.Body)
-	case *ast.RangeStmt:
-		return containsEmptySelect(s.Body)
-	case *ast.SwitchStmt:
-		return containsEmptySelect(s.Body)
-	case *ast.TypeSwitchStmt:
-		return containsEmptySelect(s.Body)
-	case *ast.CaseClause:
-		for _, bodyStmt := range s.Body {
-			if hasEmptySelect(bodyStmt) {
-				return true
+	// Use ast.Inspect to find empty select statements
+	found := false
+	ast.Inspect(mainFunc.Body, func(n ast.Node) bool {
+		if sel, ok := n.(*ast.SelectStmt); ok {
+			if sel.Body == nil || len(sel.Body.List) == 0 {
+				found = true
+				return false // stop inspection
 			}
 		}
-	}
-	return false
+		return true // continue
+	})
+	return found, nil
 }

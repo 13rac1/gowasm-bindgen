@@ -19,7 +19,7 @@ func TestCopyFile(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	// Create source file
 	srcPath := filepath.Join(tmpDir, "source.txt")
@@ -49,7 +49,7 @@ func TestCopyFile_SourceNotFound(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	err = copyFile(filepath.Join(tmpDir, "nonexistent"), filepath.Join(tmpDir, "dest"))
 	if err == nil {
@@ -62,7 +62,7 @@ func TestGenerateSyncOutput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	parsed := &parser.ParsedFile{
 		Package: "main",
@@ -93,7 +93,7 @@ func TestGenerateWorkerOutput(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	parsed := &parser.ParsedFile{
 		Package: "main",
@@ -206,7 +206,7 @@ func TestCLI_NoBuildGeneratesFiles(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	// Run with --no-build to generate only
 	cmd := exec.Command("go", "run", ".", "--no-build", "--output", tmpDir, "test/e2e/wasm/main.go") //nolint:gosec // test command
@@ -240,7 +240,7 @@ func TestCLI_SyncModeNoWorker(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	// Run with --no-build and --mode sync
 	cmd := exec.Command("go", "run", ".", "--no-build", "--output", tmpDir, "--mode", "sync", "test/e2e/wasm/main.go") //nolint:gosec // test command
@@ -268,7 +268,7 @@ func TestCLI_CustomClassName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	// Run with custom class name
 	cmd := exec.Command("go", "run", ".", "--no-build", "--output", tmpDir, "--class-name", "MyCustomWasm", "test/e2e/wasm/main.go") //nolint:gosec // test command
@@ -299,7 +299,7 @@ func TestCLI_NoExportedFunctions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	// Create a Go file with no exported functions
 	goFile := filepath.Join(tmpDir, "main.go")
@@ -334,7 +334,7 @@ func TestCLI_MissingSelectInMain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	// Create a Go file without select {}
 	goFile := filepath.Join(tmpDir, "main.go")
@@ -368,7 +368,7 @@ func TestCopyWasmExec_Go(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	if err := copyWasmExec("go", tmpDir); err != nil {
 		t.Fatalf("copyWasmExec failed: %v", err)
@@ -400,7 +400,7 @@ func TestCopyWasmExec_TinyGo(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	if err := copyWasmExec("tinygo", tmpDir); err != nil {
 		t.Fatalf("copyWasmExec failed: %v", err)
@@ -418,7 +418,7 @@ func TestCopyFile_DestDirNotExist(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	// Create source file
 	srcPath := filepath.Join(tmpDir, "source.txt")
@@ -438,7 +438,7 @@ func TestGenerateSyncOutput_NoFunctions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	parsed := &parser.ParsedFile{
 		Package:   "main",
@@ -461,7 +461,7 @@ func TestGenerateWorkerOutput_NoFunctions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	parsed := &parser.ParsedFile{
 		Package:   "main",
@@ -488,7 +488,7 @@ func TestGenerateSyncOutput_WritesUsageExample(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	// Test with multiple functions to cover all usage example branches
 	parsed := &parser.ParsedFile{
@@ -519,7 +519,7 @@ func TestGenerateWorkerOutput_WritesUsageExample(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	// Test with multiple functions
 	parsed := &parser.ParsedFile{
@@ -558,7 +558,7 @@ func TestExecute_FullGeneration(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	// Use existing e2e test source file
 	cfg := Config{
@@ -594,7 +594,7 @@ func TestExecute_SyncMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	cfg := Config{
 		SourceFile: "test/e2e/wasm/main.go",
@@ -631,7 +631,7 @@ func TestExecute_VerboseMode(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	var stderr strings.Builder
 	cfg := Config{
@@ -683,7 +683,7 @@ func TestExecute_NoExportedFunctions(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	// Create a Go file with no exported functions
 	goFile := filepath.Join(tmpDir, "main.go")
@@ -721,7 +721,7 @@ func TestExecute_MissingSelect(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	// Create a Go file without select {}
 	goFile := filepath.Join(tmpDir, "main.go")
@@ -759,7 +759,7 @@ func TestExecute_DirNameMain(t *testing.T) {
 	if err != nil {
 		t.Fatalf("failed to create temp dir: %v", err)
 	}
-	defer func() { _ = os.RemoveAll(tmpDir) }()
+	t.Cleanup(func() { _ = os.RemoveAll(tmpDir) })
 
 	// Create Go file in temp dir
 	goFile := filepath.Join(tmpDir, "main.go")
@@ -783,7 +783,7 @@ func main() { select {} }
 	if err := os.Chdir(tmpDir); err != nil {
 		t.Fatalf("failed to chdir: %v", err)
 	}
-	defer func() { _ = os.Chdir(origDir) }()
+	t.Cleanup(func() { _ = os.Chdir(origDir) })
 
 	cfg := Config{
 		SourceFile: "main.go", // Relative path -> dir = "." -> dirName = "main"

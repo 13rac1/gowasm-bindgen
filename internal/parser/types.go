@@ -4,7 +4,8 @@ package parser
 type TypeKind int
 
 const (
-	KindPrimitive TypeKind = iota
+	KindUnknown TypeKind = iota // Zero value indicates uninitialized type
+	KindPrimitive
 	KindSlice
 	KindArray
 	KindMap

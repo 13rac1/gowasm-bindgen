@@ -73,7 +73,7 @@ func GenerateClient(parsed *parser.ParsedFile, outputFile, className string) str
 
 	// Generate named interfaces for struct return types
 	for _, fn := range parsed.Functions {
-		if iface := GenerateInterfaceForFunction(fn, parsed.Types); iface != "" {
+		if iface := generateInterfaceForFunction(fn); iface != "" {
 			b.WriteString(iface)
 			b.WriteString("\n\n")
 		}
@@ -189,7 +189,7 @@ func GenerateWorkerClassMethod(fn parser.GoFunction) string {
 		b.WriteString("   */\n")
 	}
 
-	params := GenerateFunctionParams(fn.Params)
+	params := generateFunctionParams(fn.Params)
 	returnType := determineReturnType(fn)
 	funcName := LowerFirst(fn.Name)
 

@@ -355,7 +355,7 @@ func GoTypeToJSReturn(t GoType, valueExpr string) string {
 		return sliceReturn(t, valueExpr)
 
 	case KindMap:
-		return mapReturn(t, valueExpr)
+		return mapReturn(valueExpr)
 
 	case KindStruct:
 		return structReturn(t, valueExpr)
@@ -443,7 +443,7 @@ func byteSliceReturn(valueExpr string) string {
 }
 
 // mapReturn generates return conversion for maps
-func mapReturn(_ GoType, valueExpr string) string {
+func mapReturn(valueExpr string) string {
 	return "map[string]interface{}(" + valueExpr + ")"
 }
 

@@ -27,7 +27,7 @@ func ValidateFunctions(parsed *parser.ParsedFile) error {
 	var errs []error
 
 	for _, fn := range parsed.Functions {
-		errs = append(errs, validateFunction(fn, parsed.Types)...)
+		errs = append(errs, validateFunction(fn)...)
 	}
 
 	if len(errs) > 0 {
@@ -37,7 +37,7 @@ func ValidateFunctions(parsed *parser.ParsedFile) error {
 }
 
 // validateFunction checks a single function for unsupported features
-func validateFunction(fn parser.GoFunction, _ map[string]*parser.GoType) []error {
+func validateFunction(fn parser.GoFunction) []error {
 	var errs []error
 
 	// Check parameters for unsupported types
@@ -91,6 +91,11 @@ func validateType(t parser.GoType, funcName, context string) error {
 	case parser.KindStruct:
 		// Structs are supported, validate fields
 		for _, field := range t.Fields {
+			if field.Name == "" {
+				return fmt.Errorf(
+					"function %s: %s contains an anonymous/embedded field (embedded fields are not supported in WASM bindings)",
+					funcName, context)
+			}
 			if err := validateType(field.Type, funcName, context+" field "+field.Name); err != nil {
 				return err
 			}

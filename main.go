@@ -180,7 +180,7 @@ func execute(cfg Config) error {
 	workerMode := cfg.Mode == "worker"
 	bindingsCode := generator.GenerateGoBindings(parsed, workerMode)
 
-	if err := os.WriteFile(goOutput, []byte(bindingsCode), 0600); err != nil {
+	if err := os.WriteFile(goOutput, []byte(bindingsCode), 0644); err != nil { //nolint:gosec // generated source files should be readable
 		return fmt.Errorf("writing Go bindings: %w", err)
 	}
 	fmt.Fprintf(cfg.Stdout, "Generated %s\n", goOutput) //nolint:errcheck
@@ -235,7 +235,7 @@ func generateSyncOutput(parsed *parser.ParsedFile, output, className string) err
 	content := generator.Generate(parsed, filepath.Base(output), className)
 
 	// Write output
-	if err := os.WriteFile(output, []byte(content), 0600); err != nil {
+	if err := os.WriteFile(output, []byte(content), 0644); err != nil { //nolint:gosec // generated source files should be readable
 		return fmt.Errorf("writing output: %w", err)
 	}
 
@@ -258,13 +258,13 @@ func generateWorkerOutput(parsed *parser.ParsedFile, output, wasmPath, className
 
 	// Generate worker.js
 	workerPath := filepath.Join(outputDir, "worker.js")
-	if err := os.WriteFile(workerPath, []byte(generator.GenerateWorker(wasmPath)), 0600); err != nil {
+	if err := os.WriteFile(workerPath, []byte(generator.GenerateWorker(wasmPath)), 0644); err != nil { //nolint:gosec // generated source files should be readable
 		return fmt.Errorf("writing worker: %w", err)
 	}
 
 	// Generate client.ts
 	clientContent := generator.GenerateClient(parsed, filepath.Base(output), className)
-	if err := os.WriteFile(output, []byte(clientContent), 0600); err != nil {
+	if err := os.WriteFile(output, []byte(clientContent), 0644); err != nil { //nolint:gosec // generated source files should be readable
 		return fmt.Errorf("writing client: %w", err)
 	}
 
@@ -355,7 +355,7 @@ func copyFile(src, dst string) error {
 	if err != nil {
 		return fmt.Errorf("reading %s: %w", src, err)
 	}
-	if err := os.WriteFile(dst, data, 0600); err != nil {
+	if err := os.WriteFile(dst, data, 0644); err != nil { //nolint:gosec // copied runtime files should be readable
 		return fmt.Errorf("writing %s: %w", dst, err)
 	}
 	return nil

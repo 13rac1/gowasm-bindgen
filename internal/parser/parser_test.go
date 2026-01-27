@@ -437,7 +437,7 @@ func TestGoTypeToTS(t *testing.T) {
 		// Non-typed arrays (no bulk copy available)
 		{"int slice", GoType{Name: "[]int", Kind: KindSlice, Elem: &GoType{Name: "int", Kind: KindPrimitive}}, "number[]"},
 		{"string slice", GoType{Name: "[]string", Kind: KindSlice, Elem: &GoType{Name: "string", Kind: KindPrimitive}}, "string[]"},
-		{"string map", GoType{Name: "map[string]int", Kind: KindMap, Key: &GoType{Name: "string"}, Value: &GoType{Name: "int", Kind: KindPrimitive}}, "{[key: string]: number}"},
+		{"string map", GoType{Name: "map[string]int", Kind: KindMap, Key: &GoType{Name: "string", Kind: KindPrimitive}, Value: &GoType{Name: "int", Kind: KindPrimitive}}, "{[key: string]: number}"},
 		{"error", GoType{Name: "error", Kind: KindError, IsError: true}, "string"},
 		// Callbacks
 		{"void callback no params", GoType{Kind: KindFunction, IsVoid: true, CallbackParams: []GoType{}}, "() => void"},
@@ -928,5 +928,128 @@ func main() {
 				t.Errorf("HasSelectInMain() = %v, want %v", result, tt.expected)
 			}
 		})
+	}
+}
+
+func TestParseSourceFile_RecursiveStruct(t *testing.T) {
+	// Self-referential struct should be parsed without infinite loop
+	src := `package main
+
+type Node struct {
+	Value int
+	Next  *Node
+}
+
+type Tree struct {
+	Left  *Tree
+	Right *Tree
+	Data  string
+}
+
+func GetNode() *Node {
+	return nil
+}
+
+func GetTree() *Tree {
+	return nil
+}
+`
+
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "recursive.go")
+	if err := os.WriteFile(tmpFile, []byte(src), 0600); err != nil {
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+
+	parsed, err := ParseSourceFile(tmpFile)
+	if err != nil {
+		t.Fatalf("ParseSourceFile() error: %v", err)
+	}
+
+	// Should have 2 types
+	if len(parsed.Types) != 2 {
+		t.Errorf("got %d types, want 2", len(parsed.Types))
+	}
+
+	// Verify Node struct
+	nodeType, ok := parsed.Types["Node"]
+	if !ok {
+		t.Fatal("expected Node type")
+	}
+	if nodeType.Kind != KindStruct {
+		t.Errorf("Node.Kind = %v, want KindStruct", nodeType.Kind)
+	}
+	if len(nodeType.Fields) != 2 {
+		t.Errorf("Node has %d fields, want 2", len(nodeType.Fields))
+	}
+
+	// Verify Tree struct
+	treeType, ok := parsed.Types["Tree"]
+	if !ok {
+		t.Fatal("expected Tree type")
+	}
+	if treeType.Kind != KindStruct {
+		t.Errorf("Tree.Kind = %v, want KindStruct", treeType.Kind)
+	}
+	if len(treeType.Fields) != 3 {
+		t.Errorf("Tree has %d fields, want 3", len(treeType.Fields))
+	}
+
+	// Should have 2 functions
+	if len(parsed.Functions) != 2 {
+		t.Errorf("got %d functions, want 2", len(parsed.Functions))
+	}
+}
+
+func TestParseSourceFile_AnonymousField(t *testing.T) {
+	// Anonymous/embedded fields should be tracked for validator to reject
+	src := `package main
+
+type Meta struct {
+	CreatedAt string
+}
+
+type User struct {
+	Name string
+	Meta
+}
+
+func GetUser() User {
+	return User{}
+}
+`
+
+	tmpDir := t.TempDir()
+	tmpFile := filepath.Join(tmpDir, "anon.go")
+	if err := os.WriteFile(tmpFile, []byte(src), 0600); err != nil {
+		t.Fatalf("failed to write temp file: %v", err)
+	}
+
+	parsed, err := ParseSourceFile(tmpFile)
+	if err != nil {
+		t.Fatalf("ParseSourceFile() error: %v", err)
+	}
+
+	userType, ok := parsed.Types["User"]
+	if !ok {
+		t.Fatal("expected User type")
+	}
+
+	// User should have 2 fields: Name and the anonymous Meta
+	if len(userType.Fields) != 2 {
+		t.Fatalf("User has %d fields, want 2", len(userType.Fields))
+	}
+
+	// Find the anonymous field (empty name)
+	var hasAnonymous bool
+	for _, field := range userType.Fields {
+		if field.Name == "" {
+			hasAnonymous = true
+			break
+		}
+	}
+
+	if !hasAnonymous {
+		t.Error("expected anonymous field with empty name for validator to detect")
 	}
 }

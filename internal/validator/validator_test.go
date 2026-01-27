@@ -476,3 +476,33 @@ func TestUnsupportedCallbackPatterns(t *testing.T) {
 		})
 	}
 }
+
+func TestValidateFunctions_AnonymousFields(t *testing.T) {
+	// Struct with anonymous/embedded field should be rejected
+	parsed := &parser.ParsedFile{
+		Package: "wasm",
+		Functions: []parser.GoFunction{
+			{
+				Name:   "GetUser",
+				Params: []parser.GoParameter{},
+				Returns: []parser.GoType{{
+					Name: "User",
+					Kind: parser.KindStruct,
+					Fields: []parser.GoField{
+						{Name: "Name", Type: parser.GoType{Name: "string", Kind: parser.KindPrimitive}},
+						{Name: "", Type: parser.GoType{Name: "Meta", Kind: parser.KindStruct}}, // anonymous field
+					},
+				}},
+			},
+		},
+		Types: map[string]*parser.GoType{},
+	}
+
+	err := ValidateFunctions(parsed)
+	if err == nil {
+		t.Fatal("expected error for anonymous field, got nil")
+	}
+	if !strings.Contains(err.Error(), "anonymous/embedded field") {
+		t.Errorf("expected error about anonymous field, got: %v", err)
+	}
+}
