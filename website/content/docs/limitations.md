@@ -1,6 +1,6 @@
 ---
 title: "Limitations"
-weight: 20
+weight: 50
 ---
 
 # Limitations
@@ -17,6 +17,7 @@ Current limitations compared to Rust's [wasm-bindgen](https://rustwasm.github.io
 - ✅ Void callbacks in both worker and sync modes
 - ✅ Web Worker mode for non-blocking calls
 - ✅ Node.js support via `BufferSource`
+- ✅ Integrated build (compiles WASM, copies runtime)
 
 ## Current Limitations
 
@@ -67,13 +68,6 @@ const user = await wasm.createUser("Alice", 30);
 const user = new User("Alice", 30);
 ```
 
-### No Integrated Build Toolchain
-
-gowasm-bindgen generates bindings only. You still need to:
-- Run `tinygo build` or `go build` separately
-- Copy `wasm_exec.js` manually
-- Set up your own build pipeline
-
 ## Comparison with Rust wasm-bindgen
 
 | Feature | Rust wasm-bindgen | gowasm-bindgen |
@@ -85,7 +79,7 @@ gowasm-bindgen generates bindings only. You still need to:
 | Closures/callbacks | ✅ Full support | ⚠️ Void only |
 | Error handling | ✅ `Result<T,E>` | ✅ `(T, error)` |
 | JS imports | ✅ | ❌ |
-| Build toolchain | ✅ wasm-pack | ❌ |
+| Build toolchain | ✅ wasm-pack | ✅ integrated |
 | Annotations required | Yes | **No** |
 
 ## Why Use gowasm-bindgen Anyway?
@@ -99,6 +93,5 @@ gowasm-bindgen generates bindings only. You still need to:
 ## Future Roadmap
 
 - [ ] Callbacks with return values (`func(T) bool`)
-- [ ] Integrated build command
 
 Contributions welcome!
