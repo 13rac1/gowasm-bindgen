@@ -36,3 +36,4 @@ website/.hugo_build.lock
 
 # OS
 .DS_Store
+*.out
