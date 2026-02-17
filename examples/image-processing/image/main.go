@@ -33,7 +33,7 @@ func GaussianBlur(pixels []byte, width, height, radius int) []byte {
 func boxBlurH(src, dst []byte, width, height, radius int) {
 	div := radius + radius + 1
 
-	for y := 0; y < height; y++ {
+	for y := range height {
 		rowStart := y * width * 4
 
 		// Initialize accumulator with left edge pixels
@@ -50,7 +50,7 @@ func boxBlurH(src, dst []byte, width, height, radius int) {
 			aSum += int(src[idx+3])
 		}
 
-		for x := 0; x < width; x++ {
+		for x := range width {
 			idx := rowStart + x*4
 			dst[idx] = byte(rSum / div)
 			dst[idx+1] = byte(gSum / div)
@@ -83,7 +83,7 @@ func boxBlurH(src, dst []byte, width, height, radius int) {
 func boxBlurV(src, dst []byte, width, height, radius int) {
 	div := radius + radius + 1
 
-	for x := 0; x < width; x++ {
+	for x := range width {
 		// Initialize accumulator with top edge pixels
 		var rSum, gSum, bSum, aSum int
 		for i := -radius; i <= radius; i++ {
@@ -98,7 +98,7 @@ func boxBlurV(src, dst []byte, width, height, radius int) {
 			aSum += int(src[idx+3])
 		}
 
-		for y := 0; y < height; y++ {
+		for y := range height {
 			idx := y*width*4 + x*4
 			dst[idx] = byte(rSum / div)
 			dst[idx+1] = byte(gSum / div)
@@ -144,8 +144,8 @@ func Sharpen(pixels []byte, width, height, strength int) []byte {
 	center := 1 + 4*strength
 	edge := -strength
 
-	for y := 0; y < height; y++ {
-		for x := 0; x < width; x++ {
+	for y := range height {
+		for x := range width {
 			idx := (y*width + x) * 4
 
 			// Get neighbor indices with edge clamping
@@ -172,7 +172,7 @@ func Sharpen(pixels []byte, width, height, strength int) []byte {
 			rightIdx := (y*width + right) * 4
 
 			// Apply kernel for each channel
-			for c := 0; c < 3; c++ {
+			for c := range 3 {
 				val := center*int(pixels[idx+c]) +
 					edge*int(pixels[topIdx+c]) +
 					edge*int(pixels[bottomIdx+c]) +
