@@ -45,7 +45,7 @@ test-e2e: build
 # Browser test: build example and run Playwright tests
 test-example-browser:
 	$(MAKE) -C examples/simple dist
-	cd examples/simple && npx playwright test
+	cd examples/simple && npx playwright install && npx playwright test
 
 # Build website with all examples (requires hugo, tinygo, node)
 test-website: build
